@@ -197,6 +197,7 @@ a:hover { text-decoration-thickness: 2px; }
 .subnav-title { font-size: var(--fs-tagline); font-weight: 600; letter-spacing: -0.012em; white-space: nowrap; }
 .subnav .tabs { border: 0; align-self: stretch; margin-left: auto; gap: var(--sp-5); }
 .subnav .tabs a, .subnav .tabs button { display: flex; align-items: center; padding: 0; font-size: var(--fs-caption); }
+.subnav .tabs { scroll-padding-inline: var(--gutter); }
 
 .page { padding: var(--sp-7) 0 var(--sp-8); }
 .container { max-width: calc(var(--w-app) + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); }
@@ -704,9 +705,13 @@ a.chip:hover, button.chip:hover, label.chip:hover { border-color: var(--ink); te
 
 /* free: a quiet outlined cell, so the day reads as time you can tap (Calendly); hover and focus show the hint */
 .slot:not(:disabled):not(.is-selected):not(.is-preview) .slot-body::before {
-  content: ""; position: absolute; inset: 3px 0 2px; border: 1px solid var(--hairline); border-radius: var(--r-sm); pointer-events: none;
+  content: ""; position: absolute; inset: 3px 0 2px; border: 1px solid var(--fill-strong); border-radius: var(--r-sm); pointer-events: none;
 }
-.slot:not(:disabled):not(.is-selected):not(.is-booked):not(.is-unavailable):hover .slot-body { background: var(--parchment); }
+.slot:not(:disabled):not(.is-selected):not(.is-booked):not(.is-unavailable):hover .slot-body,
+.slot:not(:disabled):not(.is-selected):not(.is-preview):focus-visible .slot-body { background: var(--parchment); }
+/* A press shows the pick at once (no wait for the click), and a tap never waits for a double-tap zoom. */
+.slot { touch-action: manipulation; }
+.slot:not(:disabled):not(.is-selected):active .slot-body { background: var(--ink); color: var(--on-dark); }
 /* The hint sits on the button itself: attr() reads the element that owns the pseudo-element, and data-hint is on .slot. */
 .slot { position: relative; }
 .slot::after {
@@ -714,7 +719,7 @@ a.chip:hover, button.chip:hover, label.chip:hover { border-color: var(--ink); te
   font-size: var(--fs-caption); line-height: 1.2; pointer-events: none;
 }
 .slot[data-hint]:not(:disabled):not(.is-selected):not(.is-preview):hover::after,
-.slot[data-hint]:not(:disabled):not(.is-selected):focus-visible::after {
+.slot[data-hint]:not(:disabled):not(.is-selected):not(.is-preview):focus-visible::after {
   content: attr(data-hint); font-weight: 600; color: var(--ink);
 }
 .slot:focus-visible { outline: none; }
@@ -763,6 +768,8 @@ a.slot.is-booked, a.slot.is-unavailable { pointer-events: none; }
 /* --------------------------------------------------------------------------
    15. Sticky summary bar (frosted)
    -------------------------------------------------------------------------- */
+/* The bar never hides what has focus: scrolling into view (Tab, "Review details") stops above it. */
+html:has(.sticky-bar) { scroll-padding-bottom: 200px; }
 .sticky-bar {
   position: sticky; bottom: 0; z-index: 30;
   background: var(--frost); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
@@ -916,7 +923,7 @@ a.slot.is-booked, a.slot.is-unavailable { pointer-events: none; }
   .page-header > :first-child { flex: none; }
   .subnav-inner { gap: var(--sp-4); }
   .subnav-title { display: none; }
-  .subnav .tabs { margin-left: 0; }
+  .subnav .tabs { margin-left: 0; gap: var(--sp-4); }
   .stat { padding: var(--sp-4); }
   .stat-value { font-size: var(--fs-heading); }
   .alert { grid-template-columns: auto minmax(0, 1fr); padding: var(--sp-4); }
@@ -975,3 +982,14 @@ a.slot.is-booked, a.slot.is-unavailable { pointer-events: none; }
   .card, .table-wrap, .list, .stat { break-inside: avoid; }
   a { text-decoration: none; }
 }
+
+/* --------------------------------------------------------------------------
+   22. Meta row. Last in the file, so its left offset wins over the margin of the component it sits on
+   (.page-subtitle, .list-item-meta, .cell-sub).
+   -------------------------------------------------------------------------- */
+/* Facts side by side ("Today", "09:00–11:00", "BK-7KQ2M9") with a dot in the gap. The dot before the first item
+   of each line falls in the clipped strip on the left, so a wrapped line never starts with "·". Items are plain
+   text spans (a badge keeps its own ::before, so wrap it in a span). */
+.meta { display: flex; flex-wrap: wrap; align-items: baseline; row-gap: 2px; margin-left: -17px; clip-path: inset(-8px -8px -8px 17px); }
+.meta > * { position: relative; margin-left: 17px; min-width: 0; }
+.meta > *::before { content: "\00B7"; position: absolute; left: -11px; color: var(--muted); font-weight: 400; }
