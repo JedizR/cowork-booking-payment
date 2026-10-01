@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Payment operator{% endblock %}
+{% block content %}
+  <h1>Payment operator</h1>
+  <p class="hint">All-time totals. Plan and free bookings never reach Payment.</p>
+  <ul class="cards">
+    <li data-collected-satang="{{ totals.collected }}">Collected<br><strong>{{ totals.collected|money }}</strong></li>
+    <li data-refunded-satang="{{ totals.refunded }}">Refunded<br><strong>{{ totals.refunded|money }}</strong></li>
+    <li data-net-satang="{{ totals.net }}">Net<br><strong>{{ totals.net|money }}</strong></li>
+    <li data-commission-satang="{{ totals.commission }}">Estimated platform commission (20% of net)<br><strong>{{ totals.commission|money }}</strong></li>
+  </ul>
+
+  {% if follow_up %}
+    <h2>Failed refunds</h2>
+    <ul class="list">
+      {% for r in follow_up %}
+        <li class="status-busy" data-follow-up="{{ r.booking_reference }}">{{ r.booking_reference }}: refund attempt {{ r.attempt }} of {{ r.amount_satang|money }} failed — needs manual follow-up. Retry it from Purchase: All bookings</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <h2>Sessions</h2>
+  <table>
+    <tr><th>Booking</th><th>Amount</th><th>Status</th><th>Paid at</th></tr>
+    {% for s in sessions %}
+      <tr data-session-id="{{ s.id }}" data-booking-reference="{{ s.booking_reference }}" data-status="{{ s.shown_status }}">
+        <td>{{ s.booking_reference }}</td><td>{{ s.amount_satang|money }}</td><td>{{ s.shown_status }}</td><td>{{ s.paid_at|local_time }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="hint">No sessions yet.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Attempts</h2>
+  <table>
+    <tr><th>Booking</th><th>Card</th><th>Result</th><th>Attempted at</th></tr>
+    {% for a in attempts %}
+      <tr data-session-id="{{ a.session_id }}" data-booking-reference="{{ a.booking_reference }}" data-attempt-result="{{ a.result }}"{% if a.decline_code %} data-decline-code="{{ a.decline_code }}"{% endif %}>
+        <td>{{ a.booking_reference }}</td><td>{{ a.brand }} ending {{ a.last4 }}</td>
+        <td>{{ a.result }}{% if a.decline_code %} ({{ a.decline_code }}){% endif %}</td><td>{{ a.attempted_at|local_time }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="hint">No attempts yet.</td></tr>
+    {% endfor %}
+  </table>
+
+  <h2>Refunds</h2>
+  <table>
+    <tr><th>Booking</th><th>Attempt</th><th>Amount</th><th>Reason</th><th>Status</th><th>Created at</th></tr>
+    {% for r in refunds %}
+      <tr data-session-id="{{ r.payment_session_id }}" data-booking-reference="{{ r.booking_reference }}" data-refund-attempt="{{ r.attempt }}" data-refund-status="{{ r.status }}">
+        <td>{{ r.booking_reference }}</td><td>{{ r.attempt }}</td><td>{{ r.amount_satang|money }}</td><td>{{ r.reason }}</td><td>{{ r.status }}</td><td>{{ r.created_at|local_time }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="hint">No refunds yet.</td></tr>
+    {% endfor %}
+  </table>
+{% endblock %}

@@ -161,3 +161,30 @@ button:hover {
   height: 1em;
   min-width: 2px;
 }
+/* Tables (operator page). */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+}
+
+/* Test-mode banner on the hosted payment page. */
+.banner {
+  border: 1px dashed var(--busy);
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.banner ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}

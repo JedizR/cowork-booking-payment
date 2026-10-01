@@ -1,11 +1,58 @@
 {% extends "base.html" %}
-{% block title %}Pay{% endblock %}
+{% block title %}{% if state == "not_found" %}Payment not found{% else %}Pay {{ s.booking_reference }}{% endif %}{% endblock %}
 {% block content %}
-  {# The seed's payment form, kept; it becomes the hosted page /pay/<id> in M5. #}
-  <form method="post">
-    <input name="card_number" placeholder="Card number (mocked, e.g. 4242424242424242)" required>
-    <input name="expiry" placeholder="MM/YY" required>
-    <input name="cvc" placeholder="CVC" required>
-    <button type="submit">Pay</button>
-  </form>
+  {% if state == "not_found" %}
+    <h1>Payment not found</h1>
+    <p>This payment link is not valid.</p>
+  {% else %}
+    <h1>{{ s.amount_satang|money }}</h1>
+    <p>Booking {{ s.booking_reference }}</p>
+    <p class="hint">{{ s.description }}</p>
+    {% if state == "complete" %}
+      <p class="message status-free">Paid</p>
+      <p><a href="{{ success_href }}">Return to booking</a></p>
+    {% elif state == "expired" %}
+      <p class="message">This payment session has expired. Nothing was charged.</p>
+      <p><a href="{{ s.cancel_url }}">Back to your booking</a></p>
+    {% else %}
+      <p id="countdown" data-seconds-left="{{ seconds_left }}">Pay by {{ (s.expires_at|local_time)[11:] }} (<span id="left">{% if seconds_left < 60 %}less than 1 min left{% else %}{{ minutes_left }} min left{% endif %}</span>)</p>
+      {% for code, text in get_flashed_messages(with_categories=true) %}
+        {% if code == "form" %}
+          <p class="message">{{ text }}</p>
+        {% else %}
+          <p class="message" data-decline-code="{{ code }}">{{ text }}</p>
+        {% endif %}
+      {% endfor %}
+      <div class="banner">
+        <strong>Test mode.</strong> No real card is charged. Use any future expiry and any CVC.
+        <ul>
+          {% for number, result in test_cards %}<li><code>{{ number }}</code> {{ result }}</li>{% endfor %}
+        </ul>
+      </div>
+      <form method="post" action="/pay/{{ s.id }}" autocomplete="off">
+        <input name="card_number" inputmode="numeric" placeholder="Card number" aria-label="Card number" required>
+        <input name="expiry" placeholder="MM/YY" aria-label="Expiry MM/YY" size="6" required>
+        <input name="cvc" inputmode="numeric" placeholder="CVC" aria-label="CVC" size="5" required>
+        <button type="submit" id="pay">Pay</button>
+      </form>
+      <p><a href="{{ s.cancel_url }}">Back</a></p>
+      <script>
+        (function () {
+          var el = document.getElementById("countdown"), left = document.getElementById("left");
+          var secs = parseInt(el.dataset.secondsLeft, 10);
+          var tick = function () {
+            if (secs <= 0) {
+              left.textContent = "Time to pay has run out";
+              document.getElementById("pay").disabled = true;
+              return;
+            }
+            left.textContent = secs < 60 ? "less than 1 min left" : Math.ceil(secs / 60) + " min left";
+            secs -= 1;
+            setTimeout(tick, 1000);
+          };
+          tick();
+        })();
+      </script>
+    {% endif %}
+  {% endif %}
 {% endblock %}
