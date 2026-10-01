@@ -58,6 +58,14 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
 .pay-form .help { margin: var(--sp-1) 0 0; }
 .alert-body, .end-text { text-wrap: pretty; }
 .pay-form .btn-lg { margin-top: var(--sp-1); }
+/* Processing: the pressed Pay keeps its ink fill and spins, so it reads as working, not unavailable. */
+.btn-primary[aria-busy="true"]:disabled { background: var(--ink); color: var(--on-dark); cursor: progress; }
+.btn[aria-busy="true"]::before {
+  content: ""; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.is-processing input { color: var(--muted); }
 .pay-fine { text-align: center; margin-top: calc(-1 * var(--sp-2)); }
 
 /* End states: paid, expired, not found. One focused card with the way back. */

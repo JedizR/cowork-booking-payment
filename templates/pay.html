@@ -52,11 +52,12 @@
 
           <h2 id="pay-title">Pay with card</h2>
 
+          {# PMT-R10: the decline reason, then what it means and what to do next. #}
           {% for code, text in flashes if code != "form" %}
-            <div class="alert pay-alert" role="alert">
+            <div class="alert pay-alert" role="alert" id="decline">
               <span class="alert-icon" aria-hidden="true">!</span>
               <p class="alert-title" data-decline-code="{{ code }}">{{ text }}</p>
-              <p class="alert-body">Nothing was charged. Enter the card again or use another card. You can pay until {{ pay_by }}.</p>
+              <p class="alert-body">Nothing was charged. Enter the card number and CVC again, or use another card. You can pay until {{ pay_by }}.</p>
             </div>
           {% endfor %}
 

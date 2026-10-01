@@ -74,6 +74,21 @@
       el.addEventListener("input", function () { if (el.getAttribute("aria-invalid")) showError(null, ""); });
     });
 
+    // After a decline the expiry the Member typed comes back; the number and CVC never do.
+    // It sits in this tab's sessionStorage from the press of Pay to the next page load only:
+    // never on the server, in a flash or in a URL (PMT-R13).
+    var keptKey = "pay-expiry:" + location.pathname;
+    var kept = null;
+    try { kept = sessionStorage.getItem(keptKey); sessionStorage.removeItem(keptKey); } catch (e) { /* storage off */ }
+    var decline = document.getElementById("decline");
+    if (kept && decline && !expiry.value) expiry.value = kept;
+    // On a phone the summary comes first: after a decline or a card error the page opens back where
+    // the Member pressed Pay, with the message on top and the card fields under it.
+    var notice = decline || (error.hidden ? null : error.parentNode);
+    if (notice && notice.getBoundingClientRect().top > window.innerHeight * 0.4) {
+      window.scrollTo(0, notice.getBoundingClientRect().top + window.pageYOffset - 16);
+    }
+
     // Shape checks in the server's order (PMT-R08). Whether the month has passed is the
     // server's call: its clock may be the test clock.
     form.noValidate = true;
@@ -87,8 +102,13 @@
         showError(problem[0], problem[1]);
         return;
       }
+      try { sessionStorage.setItem(keptKey, expiry.value); } catch (e) { /* storage off */ }
+      // Processing: one press only, the button says so and the fields hold still.
       payButton.disabled = true;
-      payButton.textContent = "Processing...";
+      payButton.setAttribute("aria-busy", "true");
+      payButton.textContent = "Processing\u2026";
+      [number, expiry, cvc].forEach(function (el) { el.readOnly = true; });
+      form.classList.add("is-processing");
     });
     // Coming back through the history cache must not leave the button stuck.
     window.addEventListener("pageshow", function (event) {
