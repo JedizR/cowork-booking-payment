@@ -96,7 +96,7 @@
         <ul class="follow-list">
           {% for r in follow_up %}
             <li data-follow-up="{{ r.booking_reference }}">
-              <a class="follow-ref" href="{{ r.cancel_url }}">{{ r.booking_reference }}</a>
+              <a class="follow-ref cell-title" href="{{ r.cancel_url }}">{{ r.booking_reference }}</a>
               <span class="follow-text">Refund attempt {{ r.attempt }} of <span class="num">{{ r.amount_satang|money }}</span> failed and needs manual follow-up. Retry it from <a href="{{ attention }}">Purchase: All bookings</a>.</span>
               <span class="follow-time num">{{ r.created_at|local_time }}</span>
             </li>
@@ -125,7 +125,7 @@
               {% set badge = session_badge[s.shown_status] %}
               {% if s.refunded_satang %}{% set badge = ("badge-muted", "Refunded" if s.refunded_satang >= s.amount_satang else "Partly refunded") %}{% endif %}
               <tr data-session-id="{{ s.id }}" data-booking-reference="{{ s.booking_reference }}" data-status="{{ s.shown_status }}">
-                <td><a href="{{ s.cancel_url }}">{{ s.booking_reference }}</a><span class="cell-sub mono">{{ s.id }}</span></td>
+                <td><a class="cell-title" href="{{ s.cancel_url }}">{{ s.booking_reference }}</a><span class="cell-sub mono">{{ s.id }}</span></td>
                 <td class="wrap cell-for">{{ s.description }}</td>
                 <td class="cell-status"><span class="badge {{ badge[0] }}">{{ badge[1] }}</span></td>
                 <td class="cell-time">{% if s.paid_at %}<span class="cell-label">Paid </span>{{ s.paid_at|local_time }}{% else %}<span class="muted">Not paid</span>{% endif %}</td>
@@ -150,9 +150,9 @@
           <tbody>
             {% for a in attempts %}
               <tr data-session-id="{{ a.session_id }}" data-booking-reference="{{ a.booking_reference }}" data-attempt-result="{{ a.result }}"{% if a.decline_code %} data-decline-code="{{ a.decline_code }}"{% endif %}>
-                <td><a href="{{ a.cancel_url }}">{{ a.booking_reference }}</a><span class="cell-sub mono">{{ a.id }}</span></td>
+                <td><a class="cell-title" href="{{ a.cancel_url }}">{{ a.booking_reference }}</a></td>
                 <td><span class="first-cap">{{ a.brand }} ending {{ a.last4 }}</span></td>
-                <td class="cell-status">{% if a.result == "succeeded" %}<span class="badge badge-solid">Succeeded</span>{% else %}<span class="badge badge-muted">Declined</span> <span class="cell-reason">{{ decline_words.get(a.decline_code, a.decline_code) }}</span><span class="cell-sub mono">{{ a.decline_code }}</span>{% endif %}</td>
+                <td class="cell-status">{% if a.result == "succeeded" %}<span class="badge badge-solid">Succeeded</span>{% else %}<span class="badge badge-muted">Declined</span> <span class="cell-reason">{{ decline_words.get(a.decline_code, a.decline_code) }}</span>{% endif %}</td>
                 <td class="cell-time">{{ a.attempted_at|local_time }}</td>
               </tr>
             {% endfor %}
@@ -174,10 +174,10 @@
           <tbody>
             {% for r in refunds %}
               <tr{% if r.id in follow_ids %} class="is-flagged"{% endif %} data-session-id="{{ r.payment_session_id }}" data-booking-reference="{{ r.booking_reference }}" data-refund-attempt="{{ r.attempt }}" data-refund-status="{{ r.status }}">
-                <td><a href="{{ r.cancel_url }}">{{ r.booking_reference }}</a><span class="cell-sub mono">{{ r.id }}</span></td>
+                <td><a class="cell-title" href="{{ r.cancel_url }}">{{ r.booking_reference }}</a></td>
                 <td class="num"><span class="cell-label">Attempt </span>{{ r.attempt }}</td>
                 <td class="cell-status">{% if r.status == "succeeded" %}<span class="badge badge-solid">Refunded</span>{% elif r.id in follow_ids %}<span class="badge badge-attention">Refund failed</span>{% else %}<span class="badge badge-muted">Failed</span><span class="cell-sub">A later attempt succeeded</span>{% endif %}</td>
-                <td>{{ reason_words.get(r.reason, r.reason) }}{% if r.reason in reason_words %}<span class="cell-sub mono">{{ r.reason }}</span>{% endif %}</td>
+                <td>{{ reason_words.get(r.reason, r.reason) }}</td>
                 <td class="cell-time">{{ r.created_at|local_time }}</td>
                 <td class="col-num">{{ r.amount_satang|money }}</td>
               </tr>

@@ -197,3 +197,7 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
   flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
   background: var(--on-dark); color: var(--black);
 }
+
+/* Booking references in the tables: bold row titles, as in Purchase's tables. */
+.cell-title { font-weight: 600; text-decoration: none; }
+.cell-title:hover { text-decoration: underline; }
