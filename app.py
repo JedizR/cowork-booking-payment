@@ -237,6 +237,8 @@ def create_app(database_url: str | None = None) -> Flask:
             "pay.html", s=row, state=state, seconds_left=seconds_left,
             minutes_left=ceil(seconds_left / 60), test_cards=payment.TEST_CARD_LIST,
             success_href=payment.success_redirect(row) if row else None,
+            # An unknown link still has a way out: My bookings on Purchase.
+            purchase=purchase_origin() if row is None else None,
         ), status
 
     @app.get("/pay/<session_id>")

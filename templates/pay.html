@@ -114,6 +114,7 @@
         <p class="eyebrow">404</p>
         <h1 class="end-title">Payment not found</h1>
         <p class="end-text">This payment link is not valid. Open your booking on Cowork Booking and continue to payment from there.</p>
+        {% if purchase %}<a class="btn btn-primary btn-lg btn-block" href="{{ purchase }}/bookings/mine">Go to My bookings</a>{% endif %}
       {% endif %}
     </div>
   </div>

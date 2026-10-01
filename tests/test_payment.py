@@ -383,6 +383,15 @@ def test_pmt_r17_operator_links_back_to_purchase_and_shows_words_first(client):
     assert '<form method="post" action="http://localhost:8001/logout"><button' in html
 
 
+def test_pmt_r07_an_unknown_link_offers_my_bookings_once_purchase_is_known(client):
+    r = client.get("/pay/ps_doesnotexist")
+    assert r.status_code == 404 and "Go to My bookings" not in r.get_data(as_text=True)
+    sid_of(client)
+    html = client.get("/pay/ps_doesnotexist").get_data(as_text=True)
+    assert 'href="http://localhost:8001/bookings/mine">Go to My bookings</a>' in html
+    assert "BK-7KQ2M9" not in html
+
+
 def test_pmt_r17_operator_page_needs_the_password(client):
     for auth in (None, ("operator", "wrong-password-123"), ("operator", "passwörd")):
         r = client.get("/operator", auth=auth)
