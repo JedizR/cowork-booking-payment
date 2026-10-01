@@ -29,21 +29,36 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
 }
 .test-banner > summary::-webkit-details-marker { display: none; }
 .test-banner-text { color: var(--ink-80); }
-.test-banner-toggle { margin-left: auto; font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+/* "Test cards" opens the list: drawn as a compact utility button, like Stripe's test-mode chip. */
+.test-banner-toggle {
+  margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  min-height: var(--h-control-sm); padding: 6px 12px; border: 1px solid var(--field-border); border-radius: var(--r-sm);
+  background: var(--canvas); font-weight: 600; transition: background-color var(--dur) var(--ease);
+}
 .test-banner-toggle::after {
   content: ""; width: 7px; height: 7px; margin-top: -3px; border: solid var(--ink); border-width: 0 1.5px 1.5px 0;
   transform: rotate(45deg); transition: transform var(--dur) var(--ease);
 }
 .test-banner[open] .test-banner-toggle::after { transform: rotate(-135deg); margin-top: 3px; }
-.test-banner > summary:hover .test-banner-toggle { text-decoration: underline; text-underline-offset: 0.2em; }
-.test-banner ul { margin: 0; padding: var(--sp-1) 14px var(--sp-2); align-items: center; border-top: 1px dashed var(--fill-strong); }
+.test-banner > summary:hover .test-banner-toggle { background: var(--fill); }
+.test-banner > summary:active .test-banner-toggle { transform: scale(0.97); }
+.test-banner > summary:focus-visible { outline: none; }
+.test-banner > summary:focus-visible .test-banner-toggle { outline: 2px solid var(--black); outline-offset: 2px; }
+/* Each test card is one utility button: number left, outcome right; a press fills the form. */
+.test-banner ul { grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 0; padding: var(--sp-3) 14px; border-top: 1px dashed var(--fill-strong); }
+.test-banner li { display: block; }
 .test-banner .fine { padding: 0 14px var(--sp-3); margin: 0; }
 .test-card {
-  appearance: none; margin: 0 0 0 -8px; padding: 5px 8px; border: 0; border-radius: var(--r-sm);
-  background: transparent; color: var(--ink); cursor: pointer; text-align: left;
+  appearance: none; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); width: 100%;
+  min-height: var(--h-control-sm); margin: 0; padding: 6px 12px; border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  background: var(--canvas); color: var(--ink); font: inherit; cursor: pointer; text-align: left;
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
-.test-card:hover { background: var(--fill); }
-.test-card:active { transform: scale(0.97); }
+.test-card code { flex: none; white-space: nowrap; }
+.test-card span { color: var(--ink-80); text-align: right; text-wrap: balance; }
+.test-card:hover { background: var(--fill); border-color: var(--field-border); }
+.test-card:active { transform: scale(0.99); }
+@media (pointer: coarse) { .test-card { min-height: var(--h-control); } }
 
 .checkout-form h2 { margin-bottom: var(--sp-5); }
 .pay-alert { margin-bottom: var(--sp-5); border: 2px solid var(--ink); grid-template-columns: auto minmax(0, 1fr); }

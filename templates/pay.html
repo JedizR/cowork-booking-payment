@@ -44,7 +44,7 @@
             </summary>
             <ul>
               {% for number, result in test_cards %}
-                <li><button type="button" class="test-card" data-card="{{ number }}" aria-label="Use test card {{ number }}: {{ result }}"><code>{{ number[:4] }} {{ number[4:8] }} {{ number[8:12] }} {{ number[12:] }}</code></button><span>{{ result }}</span></li>
+                <li><button type="button" class="test-card" data-card="{{ number }}" aria-label="Use test card {{ number }}: {{ result }}"><code>{{ number[:4] }} {{ number[4:8] }} {{ number[8:12] }} {{ number[12:] }}</code><span>{{ result }}</span></button></li>
               {% endfor %}
             </ul>
             <p class="fine">Any future expiry and any CVC. Choose a card to fill the form.</p>
