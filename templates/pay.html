@@ -15,7 +15,8 @@
       <p class="message">This payment session has expired. Nothing was charged.</p>
       <p><a href="{{ s.cancel_url }}">Back to your booking</a></p>
     {% else %}
-      <p id="countdown" data-seconds-left="{{ seconds_left }}">Pay by {{ (s.expires_at|local_time)[11:] }} (<span id="left">{% if seconds_left < 60 %}less than 1 min left{% else %}{{ minutes_left }} min left{% endif %}</span>)</p>
+      {% set pay_by = (s.expires_at|local_time)[11:] %}
+      <p id="countdown" data-seconds-left="{{ seconds_left }}" data-pay-by="{{ pay_by }}">Pay by {{ pay_by }} ({% if seconds_left < 60 %}less than 1 min left{% else %}{{ minutes_left }} min left{% endif %})</p>
       {% for code, text in get_flashed_messages(with_categories=true) %}
         {% if code == "form" %}
           <p class="message">{{ text }}</p>
@@ -38,15 +39,16 @@
       <p><a href="{{ s.cancel_url }}">Back</a></p>
       <script>
         (function () {
-          var el = document.getElementById("countdown"), left = document.getElementById("left");
+          var el = document.getElementById("countdown");
           var secs = parseInt(el.dataset.secondsLeft, 10);
           var tick = function () {
             if (secs <= 0) {
-              left.textContent = "Time to pay has run out";
+              el.textContent = "Time to pay has run out";
               document.getElementById("pay").disabled = true;
               return;
             }
-            left.textContent = secs < 60 ? "less than 1 min left" : Math.ceil(secs / 60) + " min left";
+            el.textContent = "Pay by " + el.dataset.payBy + " (" +
+              (secs < 60 ? "less than 1 min left" : Math.ceil(secs / 60) + " min left") + ")";
             secs -= 1;
             setTimeout(tick, 1000);
           };
