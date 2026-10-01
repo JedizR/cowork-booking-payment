@@ -107,11 +107,19 @@
     });
   }
 
+  // --- Operator page: on phones the tab strip starts scrolled to its end, where "Payment totals" is ---
+  var strip = document.querySelector(".subnav .tabs");
+  if (strip) {
+    var toEnd = function () { strip.scrollLeft = strip.scrollWidth; };
+    toEnd();
+    if (document.fonts) document.fonts.ready.then(toEnd);  // Inter is wider than the fallback
+  }
+
   // --- Operator page: Sessions / Attempts / Refunds as tabs ------------------------------------
   var records = document.querySelector(".records");
   if (records) {
     var tabs = Array.prototype.slice.call(records.querySelectorAll('[role="tab"]'));
-    var select = function (id, focus) {
+    var select = function (id, focus, initial) {
       tabs.forEach(function (tab) {
         var on = tab.getAttribute("aria-controls") === id;
         tab.setAttribute("aria-selected", on ? "true" : "false");
@@ -119,7 +127,8 @@
         document.getElementById(tab.getAttribute("aria-controls")).hidden = !on;
         if (on && focus) tab.focus();
       });
-      history.replaceState(null, "", "#" + id);
+      // Not on the first select: a fragment set before load makes the browser jump to the panel.
+      if (!initial) history.replaceState(null, "", "#" + id);
     };
     tabs.forEach(function (tab, i) {
       tab.addEventListener("click", function () { select(tab.getAttribute("aria-controls")); });
@@ -128,16 +137,9 @@
         if (step) select(tabs[(i + step + tabs.length) % tabs.length].getAttribute("aria-controls"), true);
       });
     });
-    document.querySelectorAll("[data-tab-link]").forEach(function (link) {
-      link.addEventListener("click", function (event) {
-        event.preventDefault();
-        select(link.getAttribute("data-tab-link"));
-        records.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    });
     records.querySelector('[role="tablist"]').hidden = false;
     records.classList.add("has-tabs");
     var wanted = location.hash.slice(1);
-    select(tabs.some(function (t) { return t.getAttribute("aria-controls") === wanted; }) ? wanted : "sessions");
+    select(tabs.some(function (t) { return t.getAttribute("aria-controls") === wanted; }) ? wanted : "sessions", false, true);
   }
 })();

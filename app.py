@@ -292,12 +292,17 @@ def create_app(database_url: str | None = None) -> Flask:
         for s in sessions:
             s["shown_status"] = payment.effective_status(s, now)
         attempts = db.execute(
-            "SELECT a.*, s.booking_reference FROM payment_attempts a"
+            "SELECT a.*, s.booking_reference, s.cancel_url FROM payment_attempts a"
             " JOIN payment_sessions s ON s.id = a.session_id ORDER BY a.attempted_at DESC"
         ).fetchall()
-        refunds = db.execute("SELECT * FROM refunds ORDER BY created_at DESC").fetchall()
+        # cancel_url is the booking's page on Purchase: every booking reference links there.
+        refunds = db.execute(
+            "SELECT r.*, s.cancel_url FROM refunds r JOIN payment_sessions s"
+            " ON s.id = r.payment_session_id ORDER BY r.created_at DESC"
+        ).fetchall()
         follow_up = db.execute(
-            "SELECT r.* FROM refunds r WHERE r.status = 'failed' AND NOT EXISTS ("
+            "SELECT r.*, s.cancel_url FROM refunds r JOIN payment_sessions s"
+            " ON s.id = r.payment_session_id WHERE r.status = 'failed' AND NOT EXISTS ("
             " SELECT 1 FROM refunds later WHERE later.payment_session_id = r.payment_session_id"
             " AND later.status = 'succeeded' AND later.attempt > r.attempt)"
             " ORDER BY r.created_at DESC"
@@ -313,7 +318,9 @@ def create_app(database_url: str | None = None) -> Flask:
         totals = {"collected": collected, "refunded": refunded, "net": net,
                   "commission": payment.commission(net)}
         return render_template("operator.html", sessions=sessions, attempts=attempts,
-                               refunds=refunds, follow_up=follow_up, totals=totals, now=now)
+                               refunds=refunds, follow_up=follow_up, totals=totals, now=now,
+                               purchase=payment.origin(sessions[0]["success_url"]) if sessions else None,
+                               decline_words=payment.DECLINE_WORDS, reason_words=payment.REASON_WORDS)
 
     # --- Ops ----------------------------------------------------------------------------------
 

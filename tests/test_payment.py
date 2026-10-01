@@ -359,6 +359,23 @@ def test_pmt_r17_operator_totals_and_commission_rounding(client):
         assert marker in html, marker
 
 
+def test_pmt_r17_operator_links_back_to_purchase_and_shows_words_first(client):
+    sid = sid_of(client, booking_reference="BK-3HT8WD", amount_satang=100000,
+                 cancel_url="http://localhost:8001/bookings/BK-3HT8WD")
+    pay(client, sid, card="4000000000009995")
+    pay(client, sid, card="4000000000005126")
+    refund(client, sid, amount=100000, ref="BK-3HT8WD", reason="operator_cancel")
+    html = client.get("/operator", auth=OPERATOR).get_data(as_text=True)
+    # Links come from the URLs Purchase sent (browser navigation only, PMT-R18).
+    assert html.count('href="http://localhost:8001/bookings/BK-3HT8WD"') >= 4
+    for href in ("/dashboard", "/operator/bookings", "/operator/spaces", "/operator/members"):
+        assert f'href="http://localhost:8001{href}"' in html, href
+    assert "Retry it from" in html and 'href="http://localhost:8001/operator/bookings?status=flagged">Purchase: All bookings</a>' in html
+    assert "Insufficient funds" in html and "insufficient_funds" in html
+    assert "Operator cancelled" in html and "Mon 5 Oct, 10:00" in html
+    assert "<h1 class=\"page-title\">Payment totals</h1>" in html
+
+
 def test_pmt_r17_operator_page_needs_the_password(client):
     for auth in (None, ("operator", "wrong-password-123"), ("operator", "passwörd")):
         r = client.get("/operator", auth=auth)

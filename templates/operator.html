@@ -1,7 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Payment operator{% endblock %}
+{% block title %}Payment totals{% endblock %}
 {% block body_class %}page-operator{% endblock %}
+{# purchase is the origin of the URLs Purchase sent with its sessions: links only, never a call (PMT-R18). #}
+{% block brand %}{% if purchase %}<a class="brand" href="{{ purchase }}/"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking<span class="brand-context">· Payment</span></a>{% else %}{{ super() }}{% endif %}{% endblock %}
 {% block topnav_right %}<div class="topnav-right"><span class="topnav-user">Operator</span></div>{% endblock %}
+{% block subnav %}
+  <div class="subnav">
+    <div class="subnav-inner">
+      <span class="subnav-title">Operator</span>
+      <nav class="tabs" aria-label="Operator">
+        {% if purchase %}
+          <a href="{{ purchase }}/dashboard">Dashboard</a>
+          <a href="{{ purchase }}/operator/bookings">Bookings</a>
+          <a href="{{ purchase }}/operator/spaces">Spaces</a>
+          <a href="{{ purchase }}/operator/members">Members</a>
+        {% endif %}
+        <a href="/operator" aria-current="page">Payment totals</a>
+      </nav>
+    </div>
+  </div>
+{% endblock %}
 {% block content %}
 {% set paid_count = sessions|selectattr("shown_status", "equalto", "complete")|list|length %}
 {% set refunded_count = refunds|selectattr("status", "equalto", "succeeded")|list|length %}
@@ -10,9 +28,8 @@
 <div class="page"><div class="container">
   <header class="page-header">
     <div>
-      <p class="eyebrow">Operator</p>
-      <h1 class="page-title">Payments</h1>
-      <p class="page-subtitle">All-time totals as of {{ now|local_time }}. Plan and free bookings never reach Payment.</p>
+      <h1 class="page-title">Payment totals</h1>
+      <p class="page-subtitle">All time, as of {{ now|local_time }}. Plan and free bookings never reach Payment.</p>
     </div>
   </header>
 
@@ -40,6 +57,7 @@
   </div>
 
   {% if follow_up %}
+    {% set attention = purchase ~ "/operator/bookings?status=flagged" %}
     <div class="alert alert-strong follow-up" role="status">
       <span class="alert-icon" aria-hidden="true">!</span>
       <p class="alert-title">Needs manual follow-up</p>
@@ -48,14 +66,15 @@
         <ul class="follow-list">
           {% for r in follow_up %}
             <li data-follow-up="{{ r.booking_reference }}">
-              <span class="follow-ref">{{ r.booking_reference }}</span>
-              <span class="follow-text">Refund attempt {{ r.attempt }} of <span class="num">{{ r.amount_satang|money }}</span> failed and needs manual follow-up. Retry it from Purchase: All bookings.</span>
+              <a class="follow-ref" href="{{ r.cancel_url }}">{{ r.booking_reference }}</a>
+              <span class="follow-text">Refund attempt {{ r.attempt }} of <span class="num">{{ r.amount_satang|money }}</span> failed and needs manual follow-up. Retry it from <a href="{{ attention }}">Purchase: All bookings</a>.</span>
               <span class="follow-time num">{{ r.created_at|local_time }}</span>
             </li>
           {% endfor %}
         </ul>
       </div>
-      <div class="alert-actions"><a class="btn btn-primary btn-utility" href="#refunds" data-tab-link="refunds">View refunds</a></div>
+      {# One failed refund: straight to its booking page, where Retry is. More: the Needs attention list. #}
+      <div class="alert-actions"><a class="btn btn-primary" href="{{ follow_up[0].cancel_url if follow_up|length == 1 else attention }}">Retry in Purchase</a></div>
     </div>
   {% endif %}
 
@@ -75,7 +94,7 @@
             {% for s in sessions %}
               {% set badge = session_badge[s.shown_status] %}
               <tr data-session-id="{{ s.id }}" data-booking-reference="{{ s.booking_reference }}" data-status="{{ s.shown_status }}">
-                <td><strong>{{ s.booking_reference }}</strong><span class="cell-sub mono">{{ s.id }}</span></td>
+                <td><a href="{{ s.cancel_url }}">{{ s.booking_reference }}</a><span class="cell-sub mono">{{ s.id }}</span></td>
                 <td class="cell-status"><span class="badge {{ badge[0] }}">{{ badge[1] }}</span></td>
                 <td class="cell-time">{% if s.paid_at %}{{ s.paid_at|local_time }}{% else %}<span class="muted">Not paid</span>{% endif %}</td>
                 <td class="col-num">{{ s.amount_satang|money }}</td>
@@ -99,9 +118,9 @@
           <tbody>
             {% for a in attempts %}
               <tr data-session-id="{{ a.session_id }}" data-booking-reference="{{ a.booking_reference }}" data-attempt-result="{{ a.result }}"{% if a.decline_code %} data-decline-code="{{ a.decline_code }}"{% endif %}>
-                <td><strong>{{ a.booking_reference }}</strong><span class="cell-sub mono">{{ a.id }}</span></td>
+                <td><a href="{{ a.cancel_url }}">{{ a.booking_reference }}</a><span class="cell-sub mono">{{ a.id }}</span></td>
                 <td><span class="first-cap">{{ a.brand }} ending {{ a.last4 }}</span></td>
-                <td class="cell-status">{% if a.result == "succeeded" %}<span class="badge badge-solid">Succeeded</span>{% else %}<span class="badge badge-muted">Declined</span> <span class="mono muted">{{ a.decline_code }}</span>{% endif %}</td>
+                <td class="cell-status">{% if a.result == "succeeded" %}<span class="badge badge-solid">Succeeded</span>{% else %}<span class="badge badge-muted">Declined</span> <span class="cell-reason">{{ decline_words.get(a.decline_code, a.decline_code) }}</span><span class="cell-sub mono">{{ a.decline_code }}</span>{% endif %}</td>
                 <td class="cell-time">{{ a.attempted_at|local_time }}</td>
               </tr>
             {% endfor %}
@@ -123,10 +142,10 @@
           <tbody>
             {% for r in refunds %}
               <tr{% if r.id in follow_ids %} class="is-flagged"{% endif %} data-session-id="{{ r.payment_session_id }}" data-booking-reference="{{ r.booking_reference }}" data-refund-attempt="{{ r.attempt }}" data-refund-status="{{ r.status }}">
-                <td><strong>{{ r.booking_reference }}</strong><span class="cell-sub mono">{{ r.id }}</span></td>
+                <td><a href="{{ r.cancel_url }}">{{ r.booking_reference }}</a><span class="cell-sub mono">{{ r.id }}</span></td>
                 <td class="num"><span class="cell-label">Attempt </span>{{ r.attempt }}</td>
                 <td class="cell-status">{% if r.status == "succeeded" %}<span class="badge badge-solid">Refunded</span>{% elif r.id in follow_ids %}<span class="badge badge-attention">Refund failed</span>{% else %}<span class="badge badge-muted">Failed</span><span class="cell-sub">A later attempt succeeded</span>{% endif %}</td>
-                <td><span class="mono">{{ r.reason }}</span></td>
+                <td>{{ reason_words.get(r.reason, r.reason) }}{% if r.reason in reason_words %}<span class="cell-sub mono">{{ r.reason }}</span>{% endif %}</td>
                 <td class="cell-time">{{ r.created_at|local_time }}</td>
                 <td class="col-num">{{ r.amount_satang|money }}</td>
               </tr>

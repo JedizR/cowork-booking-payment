@@ -93,6 +93,7 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
 }
 .follow-ref { font-weight: 600; color: var(--on-dark); }
 .follow-text { color: var(--on-dark); }
+.follow-text a { color: var(--on-dark); }
 .follow-time { color: var(--on-dark-muted); font-size: var(--fs-caption); white-space: nowrap; }
 .records { margin-top: var(--sp-6); }
 .records .tabs { margin-bottom: var(--sp-5); }
@@ -106,10 +107,9 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
 .has-tabs .tab-panel + .tab-panel { margin-top: 0; }
 .has-tabs .tab-panel .section-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .has-tabs .tab-panel .section-header { margin-bottom: var(--sp-3); }
-.cell-label { display: none; }
 .first-cap { display: inline-block; }
 .first-cap::first-letter { text-transform: uppercase; }
-.table .badge + .mono { margin-left: var(--sp-2); font-size: var(--fs-fine); }
+.cell-reason { margin-left: var(--sp-2); color: var(--ink-80); }
 
 @media (max-width: 833px) {
   .checkout-summary { padding-top: var(--sp-5); padding-bottom: var(--sp-5); }

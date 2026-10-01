@@ -198,6 +198,13 @@ def line_item(description: str) -> dict | None:
     return {"name": description[:m.start()], "when": description[m.start() + 2:], "meta": meta}
 
 
+def origin(url: str) -> str:
+    """"http://localhost:8001" from a URL Purchase sent. Links built on it are browser
+    navigation only; Payment never calls it (PMT-R18)."""
+    parts = urlparse(url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
 def success_redirect(row: dict) -> str:
     sep = "&" if "?" in row["success_url"] else "?"
     return f"{row['success_url']}{sep}session_id={row['id']}"
@@ -262,6 +269,19 @@ DECLINE_TEXT = {  # PMT-T09
     "processing_error": "An error occurred while processing your card. Try again.",
 }
 REFUND_FAILS_LAST4 = "5126"
+# The operator page shows words first; the stored code stays beside them (PMT-R17).
+DECLINE_WORDS = {
+    "generic_decline": "Card declined",
+    "insufficient_funds": "Insufficient funds",
+    "expired_card": "Expired card",
+    "processing_error": "Processing error",
+}
+REASON_WORDS = {  # what Purchase sends (CONTRACT.md, POST /refunds)
+    "member_cancel": "Member cancelled",
+    "operator_cancel": "Operator cancelled",
+    "amount_mismatch": "Amount did not match",
+    "slot_unavailable": "Paid after the hold ended",
+}
 
 
 def decline_code(card_number: str) -> str | None:
