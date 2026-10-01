@@ -6,7 +6,7 @@
 | Consumer | Purchase (`cowork-booking-purchase`), through `payment_client.py` only |
 | Other users | The Member's browser (hosted page `/pay/<id>`); the Operator (page `/operator`); the e2e suite |
 | State | proposed (M2 draft). Becomes agreed at M4 sign-off (tag `contract-v1`), verified by the M6 e2e run |
-| OpenAPI | [openapi/payment.yaml](openapi/payment.yaml) |
+| OpenAPI | [openapi.yaml](openapi.yaml) |
 | Decisions | D1, D2, D8, D10, D12, D13, D14, D18, D19, D22, D27, D28; ADR-0004, ADR-0014, ADR-0018, ADR-0019, ADR-0020 |
 
 ## 1. Purpose and parties
