@@ -1,29 +1,47 @@
 name: cowork-booking-payment
 
+x-app-health: &app-health
+  # python:3.12-slim has no curl; urlopen raises (exit 1) on anything but a 2xx
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+  interval: 3s
+  timeout: 5s
+  retries: 40
+  start_period: 5s
+
 services:
   db:
     image: postgres:16
     container_name: cowork-booking-payment-db
     environment:
       POSTGRES_USER: payment
-      POSTGRES_PASSWORD: payment
+      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD:-dev-payment-db}
       POSTGRES_DB: payment
     ports:
-      - "5442:5432"
+      - "127.0.0.1:5442:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment -d payment"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
   app:
     build: .
     image: cowork-booking-payment
     container_name: cowork-booking-payment-app
     environment:
-      APP_REVISION: compose
-      DATABASE_URL: postgresql://payment:payment@db:5432/payment
+      DATABASE_URL: postgresql://payment:${PAYMENT_DB_PASSWORD:-dev-payment-db}@db:5432/payment
+      SECRET_KEY: ${SECRET_KEY:-dev-payment-secret-key-0123456789abcdef}
+      APP_REVISION: ${APP_REVISION:-compose}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8002}
+      PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:-dev-payment-api-token-0123456789abcdef}
+      OPERATOR_PASSWORD: ${OPERATOR_PASSWORD:-dev-operator-password}
     ports:
-      - "8002:8000"
+      - "127.0.0.1:8002:8000"
+    healthcheck: *app-health
     depends_on:
-      - db
+      db: {condition: service_healthy}
 
 volumes:
   db-data:
