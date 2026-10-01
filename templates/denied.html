@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Operator password required{% endblock %}
+{% block body_class %}page-pay{% endblock %}
+{# Shown when the browser's password prompt is cancelled or the password is wrong (PMT-R17). #}
+{% block content %}
+<div class="end-state">
+  <div class="card end-card">
+    <div class="checkout-merchant end-merchant"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking</div>
+    <span class="end-icon is-missing is-locked" aria-hidden="true"></span>
+    <p class="eyebrow">Operator</p>
+    <h1 class="end-title">Operator password required</h1>
+    <p class="end-text">Payment totals are for the operator only. Enter the operator password when your browser asks for it.</p>
+    <a class="btn btn-primary btn-lg btn-block" href="/operator">Enter password</a>
+  </div>
+</div>
+{% endblock %}

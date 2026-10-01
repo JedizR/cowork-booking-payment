@@ -1,0 +1,208 @@
+/* Payment-only additions to the shared design system (style.css). Black and white, Inter. */
+
+/* --- Hosted checkout (Stripe-style): no global bar; the split fills the window above the footer --- */
+.page-pay > main { display: flex; flex-direction: column; }
+.page-pay .footer { margin-top: 0; border-top: 1px solid var(--hairline); padding: var(--sp-4) 0; }
+.page-pay .checkout { flex: 1; }
+/* The footer lines up with the two 420 px checkout columns. */
+.page-pay .footer .container { max-width: calc(840px + 2 * var(--sp-7) + 2 * var(--gutter)); }
+.checkout-summary { padding-top: var(--sp-7); }
+.checkout-summary .back-link { margin-bottom: var(--sp-5); }
+.checkout-return { margin-top: var(--sp-3); text-wrap: pretty; }
+.checkout-merchant .brand-mark { background: var(--ink); color: var(--on-dark); }
+.checkout-label { margin-top: var(--sp-6); }
+.checkout-amount { font-size: 48px; letter-spacing: -0.03em; margin-bottom: var(--sp-6); }
+
+.checkout-item { background: var(--canvas); border-radius: var(--r-lg); padding: var(--sp-5); margin-bottom: var(--sp-5); }
+/* The description is Purchase's text, any length: it wraps (even a long unbroken name), never overflows. */
+.checkout-item-name { font-weight: 600; line-height: 1.35; margin: 0; overflow-wrap: anywhere; text-wrap: pretty; }
+.end-for { text-wrap: pretty; }
+.checkout-item .summary-total { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top-color: var(--hairline); }
+
+/* The test-mode banner folds its card list into a <details>. */
+details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
+.test-banner > summary {
+  display: flex; align-items: center; gap: var(--sp-3); min-height: var(--h-control); padding: 8px 14px;
+  list-style: none; cursor: pointer; border-radius: var(--r-md);
+}
+.test-banner > summary::-webkit-details-marker { display: none; }
+.test-banner-text { color: var(--ink-80); }
+/* "Test cards" opens the list: drawn as a compact utility button, like Stripe's test-mode chip. */
+.test-banner-toggle {
+  margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  min-height: var(--h-control-sm); padding: 6px 12px; border: 1px solid var(--field-border); border-radius: var(--r-sm);
+  background: var(--canvas); font-weight: 600; transition: background-color var(--dur) var(--ease);
+}
+.test-banner-toggle::after {
+  content: ""; width: 7px; height: 7px; margin-top: -3px; border: solid var(--ink); border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg); transition: transform var(--dur) var(--ease);
+}
+.test-banner[open] .test-banner-toggle::after { transform: rotate(-135deg); margin-top: 3px; }
+.test-banner > summary:hover .test-banner-toggle { background: var(--fill); }
+.test-banner > summary:active .test-banner-toggle { transform: scale(0.97); }
+.test-banner > summary:focus-visible { outline: none; }
+.test-banner > summary:focus-visible .test-banner-toggle { outline: 2px solid var(--black); outline-offset: 2px; }
+/* Each test card is one utility button: number left, outcome right; a press fills the form. */
+.test-banner ul { grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 0; padding: var(--sp-3) 14px; border-top: 1px dashed var(--fill-strong); }
+.test-banner li { display: block; }
+.test-banner .fine { padding: 0 14px var(--sp-3); margin: 0; }
+.test-card {
+  appearance: none; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); width: 100%;
+  min-height: var(--h-control-sm); margin: 0; padding: 6px 12px; border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  background: var(--canvas); color: var(--ink); font: inherit; cursor: pointer; text-align: left;
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.test-card code { flex: none; white-space: nowrap; }
+.test-card span { color: var(--ink-80); text-align: right; text-wrap: balance; }
+.test-card:hover { background: var(--fill); border-color: var(--field-border); }
+.test-card:active { transform: scale(0.99); }
+@media (pointer: coarse) { .test-card { min-height: var(--h-control); } }
+
+.checkout-form h2 { margin-bottom: var(--sp-5); }
+.pay-alert { margin-bottom: var(--sp-5); border: 2px solid var(--ink); grid-template-columns: auto minmax(0, 1fr); }
+.pay-alert .alert-icon { background: var(--ink); color: var(--on-dark); border-color: var(--ink); }
+.pay-form { display: flex; flex-direction: column; gap: var(--sp-5); }
+.pay-form .field-group input { font-variant-numeric: tabular-nums; }
+/* A card error keeps the group's dividers; only the failing input gets the 2 px ink edge. */
+.pay-form .field-group input { border: 0; padding: 12px 14px; }
+.pay-form .field-group-row > input + input { border-left: 1px solid var(--hairline); }
+.pay-form .field.has-error .field-group { border-color: var(--ink); }
+.pay-form .field-group input[aria-invalid="true"] { background: var(--parchment); outline: 2px solid var(--ink); outline-offset: -2px; }
+.pay-form .help { margin: var(--sp-1) 0 0; }
+.alert-body, .end-text { text-wrap: pretty; }
+.pay-form .btn-lg { margin-top: var(--sp-1); }
+/* Processing: the pressed Pay keeps its ink fill and spins, so it reads as working, not unavailable. */
+.btn-primary[aria-busy="true"]:disabled { background: var(--ink); color: var(--on-dark); cursor: progress; }
+.btn[aria-busy="true"]::before {
+  content: ""; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.is-processing input { color: var(--muted); }
+.pay-fine { text-align: center; margin-top: calc(-1 * var(--sp-2)); }
+
+/* End states: paid, expired, not found. One focused card with the way back. */
+.end-state { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--sp-7) var(--gutter); background: var(--parchment); }
+.end-card { width: 100%; max-width: 440px; padding: var(--sp-7) var(--sp-6) var(--sp-6); text-align: center; border-color: transparent; }
+.end-icon { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto var(--sp-5); border-radius: 50%; }
+.end-icon::before { content: ""; width: 32px; height: 32px; background: center / contain no-repeat; }
+.end-icon.is-done { background: var(--ink); }
+.end-icon.is-done::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+.end-icon.is-ended { background: var(--fill); }
+.end-icon.is-ended::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='8.25' fill='none' stroke='%23333336' stroke-width='1.8'/%3E%3Cpath d='M12 7.5V12l3 2' fill='none' stroke='%23333336' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+.end-icon.is-missing { border: 1.5px solid var(--ink); }
+.end-icon.is-missing::before { content: "?"; display: grid; place-items: center; font-size: 28px; font-weight: 600; line-height: 1; }
+.end-icon.is-locked::before { content: ""; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5' y='10.5' width='14' height='10' rx='2' fill='none' stroke='%231d1d1f' stroke-width='1.8'/%3E%3Cpath d='M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5' fill='none' stroke='%231d1d1f' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.end-card .eyebrow { margin-bottom: var(--sp-2); }
+.end-merchant { justify-content: center; margin-bottom: var(--sp-6); }
+/* Time over on an open page: the same focused end state, in place of the form. */
+.time-over { text-align: center; padding: var(--sp-7) 0; }
+.end-amount { font-size: var(--fs-display); font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; margin: 0 0 var(--sp-5); }
+.end-receipt { text-align: left; margin-bottom: var(--sp-6); border-top: 1px solid var(--divider-soft); }
+.end-title { font-size: var(--fs-heading); line-height: 1.2; letter-spacing: -0.018em; margin: 0 auto var(--sp-3); max-width: 22ch; }
+.end-text { color: var(--muted); margin: 0 0 var(--sp-6); }
+.end-text:last-child { margin-bottom: 0; }
+
+/* --- Operator page ------------------------------------------------------------------------- */
+.page-operator .page { padding-top: var(--sp-6); }
+.stats { margin-bottom: var(--sp-6); }
+.stats .stat-value { font-size: 28px; letter-spacing: -0.02em; margin: auto 0 0; padding-top: var(--sp-3); white-space: nowrap; }
+.follow-up { margin-bottom: var(--sp-6); }
+.follow-up .alert-body > p { margin: 0 0 var(--sp-3); }
+.follow-list { list-style: none; margin: 0; padding: 0; }
+.follow-list li {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-4); align-items: baseline;
+  padding: var(--sp-3) 0; border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.follow-ref { font-weight: 600; color: var(--on-dark); }
+.follow-text { color: var(--on-dark); }
+.follow-text a { color: var(--on-dark); }
+.follow-time { color: var(--on-dark-muted); font-size: var(--fs-caption); white-space: nowrap; }
+.records { margin-top: var(--sp-6); }
+.records .tabs { margin-bottom: var(--sp-5); }
+.records .tabs button { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.tab-count {
+  display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 7px; border-radius: var(--r-pill);
+  background: var(--fill); color: var(--ink-80); font-size: var(--fs-fine); font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.tabs [aria-selected="true"] .tab-count { background: var(--ink); color: var(--on-dark); }
+.tab-panel + .tab-panel { margin-top: var(--sp-7); }
+.has-tabs .tab-panel + .tab-panel { margin-top: 0; }
+.has-tabs .tab-panel .section-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.has-tabs .tab-panel .section-header { margin-bottom: var(--sp-3); }
+.first-cap { display: inline-block; }
+.first-cap::first-letter { text-transform: uppercase; }
+.cell-reason { margin-left: var(--sp-2); color: var(--ink-80); }
+
+@media (max-width: 833px) {
+  .checkout-summary { padding-top: var(--sp-5); padding-bottom: var(--sp-5); }
+  .checkout-summary .back-link { margin-bottom: var(--sp-4); }
+  .checkout-label { margin-top: var(--sp-5); }
+  .checkout-amount { font-size: 40px; margin-bottom: var(--sp-5); }
+  .checkout-form { padding-top: var(--sp-5); }
+}
+@media (max-width: 640px) {
+  .table-stack td.cell-for { flex-basis: 100%; color: var(--ink-80); }
+  /* A refunded amount keeps the total on line 1; "THB 150.00 refunded" goes to line 2, after the paid time. */
+  .table-stack td.cell-money { display: contents; }
+  .table-stack td.cell-money .cell-amount { order: 1; }
+  .table-stack td.cell-money .cell-sub { order: 3; font-weight: 400; }
+  /* Phone tables stack into cards: .table-stack in the shared style.css. */
+  /* Phone KPIs: one list, label left and value right. */
+  .stats { grid-template-columns: minmax(0, 1fr); gap: 0; border: 1px solid var(--hairline); border-radius: var(--r-lg); overflow: hidden; }
+  .stats .stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px var(--sp-3); border: 0; border-radius: 0; padding: 14px var(--sp-4); }
+  .stats .stat + .stat { border-top: 1px solid var(--divider-soft); }
+  .stats .stat-label { grid-column: 1; font-size: var(--fs-callout); color: var(--ink); }
+  .stats .stat-meta { grid-column: 1; font-size: var(--fs-fine); }
+  .stats .stat-value { grid-column: 2; grid-row: 1 / span 2; padding: 0; margin: 0; font-size: var(--fs-body); font-weight: 600; letter-spacing: -0.01em; }
+  .follow-list li { grid-template-columns: minmax(0, 1fr); }
+  .end-card { padding: var(--sp-6) var(--sp-5) var(--sp-5); }
+  .test-banner-text { display: none; }
+}
+
+/* --- Operator top bar: the same Operator menu and account menu as Purchase's bar (purchase.css) --- */
+.topnav-menu { position: relative; flex: none; }
+.topnav-menu summary {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: var(--r-pill); list-style: none; cursor: pointer;
+  color: var(--on-dark-muted); font-size: var(--fs-caption); white-space: nowrap; transition: color var(--dur) var(--ease);
+}
+.topnav-menu summary::-webkit-details-marker { display: none; }
+.topnav-menu summary::after { content: ""; width: 6px; height: 6px; margin-top: -3px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.topnav-menu summary:hover, .topnav-menu[open] summary { color: var(--on-dark); }
+.topnav-menu summary.is-active { color: var(--on-dark); background: rgba(255, 255, 255, 0.14); }
+.topnav-menu-panel {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 60; min-width: 220px; padding: 6px;
+  display: flex; flex-direction: column; background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-md);
+}
+.topnav-menu-panel a {
+  display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 9px 12px; border-radius: var(--r-sm);
+  color: var(--ink); font-size: var(--fs-caption); line-height: 1.3; text-decoration: none; white-space: nowrap;
+}
+.topnav-links .topnav-menu-panel a { color: var(--ink); }
+.topnav-menu-panel a:hover { background: var(--parchment); color: var(--ink); text-decoration: none; }
+.topnav-links .topnav-menu-panel a[aria-current="page"] { background: var(--parchment); color: var(--ink); font-weight: 600; }
+.topnav-links .topnav-menu-panel a:last-child { margin-top: 4px; border-top: 1px solid var(--divider-soft); border-radius: 0 0 var(--r-sm) var(--r-sm); }
+.topnav-menu-panel :focus-visible { outline-color: var(--black); }
+@media (max-width: 833px) { .topnav-links .topnav-menu-panel { position: fixed; top: 96px; left: var(--gutter); right: var(--gutter); } }
+.topnav-account summary { padding: 4px 10px 4px 4px; gap: var(--sp-2); color: var(--on-dark); max-width: 300px; }
+.topnav-account summary:hover, .topnav-account[open] summary { background: rgba(255, 255, 255, 0.12); }
+.topnav-account .topnav-menu-panel { left: auto; right: 0; min-width: 240px; }
+/* Log out is a real button under a rule, not a menu row. */
+.topnav-account .topnav-menu-panel form { display: block; margin: 4px 0 0; padding: 8px 6px 4px; border-top: 1px solid var(--divider-soft); }
+.topnav-user { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.topnav-avatar {
+  flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--on-dark); color: var(--black);
+}
+/* Operator tabs on phones: all five fit a 390 px phone; on a narrower one the strip scrolls to "Payments"
+   and the edge that hides a tab fades (payment.js sets the classes). */
+@media (max-width: 640px) {
+  .subnav .tabs { gap: var(--sp-3); }
+  .subnav .tabs.fade-left { -webkit-mask-image: linear-gradient(to right, transparent, #000 32px); mask-image: linear-gradient(to right, transparent, #000 32px); }
+  .subnav .tabs.fade-right { -webkit-mask-image: linear-gradient(to left, transparent, #000 32px); mask-image: linear-gradient(to left, transparent, #000 32px); }
+  .subnav .tabs.fade-left.fade-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 32px calc(100% - 32px), transparent); mask-image: linear-gradient(to right, transparent, #000 32px calc(100% - 32px), transparent); }
+}
+
+/* Booking references in the tables: bold row titles, as in Purchase's tables. */
+.cell-title { font-weight: 600; text-decoration: none; }
+.cell-title:hover { text-decoration: underline; }

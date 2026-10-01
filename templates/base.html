@@ -4,12 +4,23 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cowork Booking — {% block title %}{% endblock %}</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d1d1f'/%3E%3Ctext x='16' y='22.5' font-family='Inter,Arial,sans-serif' font-size='19' font-weight='700' text-anchor='middle' fill='%23fff'%3EC%3C/text%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='payment.css') }}">
+    <script src="{{ url_for('static', filename='payment.js') }}" defer></script>
   </head>
-  <body>
-    <nav class="site-nav">
-      <span class="brand">Cowork Booking · Payment</span>
-    </nav>
-    {% block content %}{% endblock %}
+  <body class="{% block body_class %}{% endblock %}">
+    {# The hosted checkout and the end pages have no global bar (Stripe-style); the operator page brings its own. #}
+    {% block topnav %}{% endblock %}
+    {% block subnav %}{% endblock %}
+    <main>{% block content %}{% endblock %}</main>
+    <footer class="footer">
+      <div class="container footer-inner">
+        <span>Test mode. No real money moves.</span>
+        <span>Times in Bangkok (UTC+7) · prices in THB</span>
+      </div>
+    </footer>
   </body>
 </html>

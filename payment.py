@@ -176,6 +176,13 @@ def refund_json(row: dict) -> dict:
     return {k: row[k] for k in keys}
 
 
+def origin(url: str) -> str:
+    """"http://localhost:8001" from a URL Purchase sent. Links built on it are browser
+    navigation only; Payment never calls it (PMT-R18)."""
+    parts = urlparse(url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
 def success_redirect(row: dict) -> str:
     sep = "&" if "?" in row["success_url"] else "?"
     return f"{row['success_url']}{sep}session_id={row['id']}"
@@ -225,13 +232,13 @@ TEST_CARDS = {
     "4000000000000069": "expired_card",
     "4000000000000119": "processing_error",
 }
-TEST_CARD_LIST = [
-    ("4242424242424242", "success"),
-    ("4000000000000002", "generic_decline"),
-    ("4000000000009995", "insufficient_funds"),
-    ("4000000000000069", "expired_card"),
-    ("4000000000000119", "processing_error"),
-    ("4000000000005126", "success; the first refund fails"),
+TEST_CARD_LIST = [  # the test-mode banner (PMT-R07), in plain words
+    ("4242424242424242", "Succeeds"),
+    ("4000000000000002", "Declined"),
+    ("4000000000009995", "Declined: insufficient funds"),
+    ("4000000000000069", "Declined: expired card"),
+    ("4000000000000119", "Declined: processing error"),
+    ("4000000000005126", "Succeeds; its first refund fails"),
 ]
 DECLINE_TEXT = {  # PMT-T09
     "generic_decline": "Your card was declined.",
@@ -240,6 +247,19 @@ DECLINE_TEXT = {  # PMT-T09
     "processing_error": "An error occurred while processing your card. Try again.",
 }
 REFUND_FAILS_LAST4 = "5126"
+# The operator page shows words first; the stored code stays beside them (PMT-R17).
+DECLINE_WORDS = {
+    "generic_decline": "Card declined",
+    "insufficient_funds": "Insufficient funds",
+    "expired_card": "Expired card",
+    "processing_error": "Processing error",
+}
+REASON_WORDS = {  # what Purchase sends (CONTRACT.md, POST /refunds)
+    "member_cancel": "Member cancelled",
+    "operator_cancel": "Operator cancelled",
+    "amount_mismatch": "Amount did not match",
+    "slot_unavailable": "Paid after the hold ended",
+}
 
 
 def decline_code(card_number: str) -> str | None:

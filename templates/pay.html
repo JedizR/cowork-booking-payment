@@ -1,60 +1,122 @@
 {% extends "base.html" %}
 {% block title %}{% if state == "not_found" %}Payment not found{% else %}Pay {{ s.booking_reference }}{% endif %}{% endblock %}
+{% block body_class %}page-pay{% endblock %}
+{# Stripe-style: no global bar on the hosted page; the merchant row is the header.
+   The line item is the description exactly as Purchase sent it: Purchase owns its words and time format. #}
 {% block content %}
-  {% if state == "not_found" %}
-    <h1>Payment not found</h1>
-    <p>This payment link is not valid.</p>
-  {% else %}
-    <h1>{{ s.amount_satang|money }}</h1>
-    <p>Booking {{ s.booking_reference }}</p>
-    <p class="hint">{{ s.description }}</p>
-    {% if state == "complete" %}
-      <p class="message status-free">Paid</p>
-      <p><a href="{{ success_href }}">Return to booking</a></p>
-    {% elif state == "expired" %}
-      <p class="message">This payment session has expired. Nothing was charged.</p>
-      <p><a href="{{ s.cancel_url }}">Back to your booking</a></p>
-    {% else %}
-      {% set pay_by = (s.expires_at|local_time)[11:] %}
-      <p id="countdown" data-seconds-left="{{ seconds_left }}" data-pay-by="{{ pay_by }}">Pay by {{ pay_by }} ({% if seconds_left < 60 %}less than 1 min left{% else %}{{ minutes_left }} min left{% endif %})</p>
-      {% for code, text in get_flashed_messages(with_categories=true) %}
-        {% if code == "form" %}
-          <p class="message">{{ text }}</p>
-        {% else %}
-          <p class="message" data-decline-code="{{ code }}">{{ text }}</p>
-        {% endif %}
-      {% endfor %}
-      <div class="banner">
-        <strong>Test mode.</strong> No real card is charged. Use any future expiry and any CVC.
-        <ul>
-          {% for number, result in test_cards %}<li><code>{{ number }}</code> {{ result }}</li>{% endfor %}
-        </ul>
+{% if state == "open" %}
+  {% set pay_by = s.expires_at|hhmm %}
+  {% set amount = s.amount_satang|money %}
+  {% set flashes = get_flashed_messages(with_categories=true) %}
+  {# PMT-R08: a card-field message points at the field it names. #}
+  {% set field_of = {"Card number must be 13 to 19 digits": "card_number", "CVC must be 3 or 4 digits": "cvc",
+                     "Expiry must be MM/YY": "expiry", "The expiry date has passed": "expiry"} %}
+  {% set ns = namespace(error="") %}
+  {% for code, text in flashes if code == "form" %}{% set ns.error = text %}{% endfor %}
+  {% set invalid = field_of.get(ns.error) %}
+  <div class="checkout">
+    <section class="checkout-summary" aria-label="Order summary">
+      <div>
+        <a class="back-link" href="{{ s.cancel_url }}">Back to booking</a>
+        <div class="checkout-merchant"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking</div>
+        <p class="checkout-label">Booking {{ s.booking_reference }}</p>
+        <h1 class="checkout-amount">{{ amount }}</h1>
+        <div class="checkout-item">
+          <p class="checkout-item-name">{{ s.description }}</p>
+          <div class="summary-total"><span>Total due</span><span class="num">{{ amount }}</span></div>
+        </div>
+        <p class="countdown{% if seconds_left <= 120 %} is-urgent{% endif %}" id="countdown" data-seconds-left="{{ seconds_left }}" data-pay-by="{{ pay_by }}">Pay by {{ pay_by }} ({% if seconds_left < 60 %}less than 1 min left{% else %}{{ minutes_left }} min left{% endif %})</p>
+        {# PMT-R07 row 2: Back changes nothing; the same link works until expires_at. #}
+        <p class="fine checkout-return" id="come-back">Leaving keeps this payment open. You can come back and pay until {{ pay_by }}.</p>
       </div>
-      <form method="post" action="/pay/{{ s.id }}" autocomplete="off">
-        <input name="card_number" inputmode="numeric" placeholder="Card number" aria-label="Card number" required>
-        <input name="expiry" placeholder="MM/YY" aria-label="Expiry MM/YY" size="6" required>
-        <input name="cvc" inputmode="numeric" placeholder="CVC" aria-label="CVC" size="5" required>
-        <button type="submit" id="pay">Pay</button>
-      </form>
-      <p><a href="{{ s.cancel_url }}">Back</a></p>
-      <script>
-        (function () {
-          var el = document.getElementById("countdown");
-          var secs = parseInt(el.dataset.secondsLeft, 10);
-          var tick = function () {
-            if (secs <= 0) {
-              el.textContent = "Time to pay has run out";
-              document.getElementById("pay").disabled = true;
-              return;
-            }
-            el.textContent = "Pay by " + el.dataset.payBy + " (" +
-              (secs < 60 ? "less than 1 min left" : Math.ceil(secs / 60) + " min left") + ")";
-            secs -= 1;
-            setTimeout(tick, 1000);
-          };
-          tick();
-        })();
-      </script>
-    {% endif %}
-  {% endif %}
+    </section>
+
+    <section class="checkout-form" aria-labelledby="pay-title">
+      <div>
+        <div id="pay-panel">
+          <details class="test-banner">
+            <summary>
+              <span class="badge badge-solid">Test mode</span>
+              <span class="test-banner-text">No real card is charged.</span>
+              <span class="test-banner-toggle">Test cards</span>
+            </summary>
+            <ul>
+              {% for number, result in test_cards %}
+                <li><button type="button" class="test-card" data-card="{{ number }}" aria-label="Use test card {{ number }}: {{ result }}"><code>{{ number[:4] }} {{ number[4:8] }} {{ number[8:12] }} {{ number[12:] }}</code><span>{{ result }}</span></button></li>
+              {% endfor %}
+            </ul>
+            <p class="fine">Any future expiry and any CVC. Choose a card to fill the form.</p>
+          </details>
+
+          <h2 id="pay-title">Pay with card</h2>
+
+          {# PMT-R10: the decline reason, then what it means and what to do next. #}
+          {% for code, text in flashes if code != "form" %}
+            <div class="alert pay-alert" role="alert" id="decline">
+              <span class="alert-icon" aria-hidden="true">!</span>
+              <p class="alert-title" data-decline-code="{{ code }}">{{ text }}</p>
+              <p class="alert-body">Nothing was charged. Enter the card number and CVC again, or use another card. You can pay until {{ pay_by }}.</p>
+            </div>
+          {% endfor %}
+
+          <form class="pay-form" method="post" action="/pay/{{ s.id }}" autocomplete="off">
+            <div class="field{% if invalid %} has-error{% endif %}">
+              <span class="label" id="card-label">Card information</span>
+              <div class="field-group" role="group" aria-labelledby="card-label">
+                <input id="card_number" name="card_number" inputmode="numeric" placeholder="1234 1234 1234 1234"
+                       aria-label="Card number" aria-describedby="card-error" required{% if invalid == "card_number" %} aria-invalid="true" autofocus{% endif %}>
+                <div class="field-group-row">
+                  <input id="expiry" name="expiry" inputmode="numeric" placeholder="MM/YY" maxlength="5"
+                         aria-label="Expiry, MM/YY" aria-describedby="card-error" required{% if invalid == "expiry" %} aria-invalid="true" autofocus{% endif %}>
+                  <input id="cvc" name="cvc" inputmode="numeric" placeholder="CVC" maxlength="4"
+                         aria-label="CVC" aria-describedby="card-error" required{% if invalid == "cvc" %} aria-invalid="true" autofocus{% endif %}>
+                </div>
+              </div>
+              <p class="error" id="card-error" role="alert"{% if not ns.error %} hidden{% endif %}>{{ ns.error }}</p>
+              {% if ns.error %}<p class="help" id="card-again">For your security, enter the card details again.</p>{% endif %}
+            </div>
+            <button type="submit" id="pay" class="btn btn-primary btn-lg btn-block">Pay {{ amount }}</button>
+            <p class="fine pay-fine">Cowork stores only the card brand and last 4 digits.</p>
+          </form>
+        </div>
+        {# Shown by the countdown script at zero (PMT-R07); without script the server decides on the next load. #}
+        <div class="time-over" id="time-over" role="alert" hidden>
+          <span class="end-icon is-ended" aria-hidden="true"></span>
+          <h2 class="end-title">Time to pay has run out</h2>
+          <p class="end-text">Nothing was charged. This page can no longer take a payment.</p>
+          <a class="btn btn-primary btn-lg btn-block" href="{{ s.cancel_url }}">Back to your booking</a>
+        </div>
+      </div>
+    </section>
+  </div>
+{% else %}
+  <div class="end-state">
+    <div class="card end-card">
+      <div class="checkout-merchant end-merchant"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking</div>
+      {% if state == "complete" %}
+        <span class="end-icon is-done" aria-hidden="true"></span>
+        <h1 class="end-title">Paid</h1>
+        <p class="end-amount num">{{ s.amount_satang|money }}</p>
+        <dl class="dl end-receipt">
+          <dt>Booking</dt><dd>{{ s.booking_reference }}</dd>
+          <dt>For</dt><dd class="end-for">{{ s.description }}</dd>
+          {% if s.paid_at %}<dt>Paid at</dt><dd>{{ s.paid_at|local_time }}</dd>{% endif %}
+        </dl>
+        <a class="btn btn-primary btn-lg btn-block" href="{{ success_href }}">Return to booking</a>
+      {% elif state == "expired" %}
+        <span class="end-icon is-ended" aria-hidden="true"></span>
+        <p class="eyebrow">Booking {{ s.booking_reference }}</p>
+        <h1 class="end-title">This payment session has expired. Nothing was charged.</h1>
+        <p class="end-text">This link can no longer take a payment. Your booking page shows what to do next.</p>
+        <a class="btn btn-primary btn-lg btn-block" href="{{ s.cancel_url }}">Back to your booking</a>
+      {% else %}
+        <span class="end-icon is-missing" aria-hidden="true"></span>
+        <p class="eyebrow">404</p>
+        <h1 class="end-title">Payment not found</h1>
+        <p class="end-text">This payment link is not valid. Open your booking on Cowork Booking and continue to payment from there.</p>
+        {% if purchase %}<a class="btn btn-primary btn-lg btn-block" href="{{ purchase }}/bookings/mine">Go to My bookings</a>{% endif %}
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
 {% endblock %}

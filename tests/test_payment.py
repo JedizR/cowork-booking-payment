@@ -7,6 +7,7 @@ import threading
 
 from conftest import AUTH, OPERATOR, STANDARD, new_session, pay, refund, set_clock
 
+import payment
 from app import create_app
 
 
@@ -147,13 +148,31 @@ def test_pmt_r07_hosted_page_shows_amount_countdown_banner_and_ignores_query(cli
     sid = sid_of(client)
     set_clock(client, "2026-10-05T10:01:00+07:00")
     html = client.get(f"/pay/{sid}?error=Card+refused").get_data(as_text=True)
-    for text in ("THB 450.00", "Booking BK-7KQ2M9", "Meeting Room A, 2026-10-07 09:00-10:30",
+    for text in ("THB 450.00", "Booking BK-7KQ2M9",
                  "Pay by 10:13 (12 min left)", 'data-seconds-left="720"', "4000000000005126",
                  'name="card_number"', 'href="http://localhost:8001/bookings/BK-7KQ2M9"'):
         assert text in html, text
+    # The description reads as sent; markup inside it (a no-wrap span) is free.
+    assert "Meeting Room A, 2026-10-07 09:00-10:30" in re.sub(r"<[^>]+>", "", html)
     assert "Card refused" not in html
     assert "<title>Cowork Booking — Pay BK-7KQ2M9</title>" in html
     assert client.get("/pay/ps_doesnotexist").status_code == 404
+
+
+def test_pmt_r07_line_item_is_the_description_exactly_as_purchase_sent_it(client):
+    # Purchase owns the words and the time format; Payment never re-reads or reformats them.
+    for ref, description in (("BK-1AAAAA", "Meeting Room A, Thu 8 Oct, 09:00\u201311:00"),
+                             ("BK-2BBBBB", "The Long Boardroom on the Fourth Floor, East Wing, Thu 8 Oct, 09:00\u201313:00"),
+                             ("BK-3CCCCC", "Meeting Room A, 2026-10-07 09:00-10:30")):
+        sid = sid_of(client, booking_reference=ref, description=description)
+        html = client.get(f"/pay/{sid}").get_data(as_text=True)
+        assert f'<p class="checkout-item-name">{description}</p>' in html, description
+        assert "Wednesday" not in html and "Thursday" not in html
+        pay(client, sid)
+        assert f'<dd class="end-for">{description}</dd>' in client.get(f"/pay/{sid}").get_data(as_text=True)
+    html = client.get(f"/pay/{sid_of(client, booking_reference='BK-3HT8WD', description='Desk <b>7</b>')}").get_data(as_text=True)
+    assert "Desk &lt;b&gt;7&lt;/b&gt;" in html
+    assert '<p class="checkout-label">Booking BK-3HT8WD</p>' in html
 
 
 def test_pmt_r08_card_field_errors_are_flashed_and_store_nothing(client):
@@ -341,10 +360,64 @@ def test_pmt_r17_operator_totals_and_commission_rounding(client):
         assert marker in html, marker
 
 
+def test_pmt_r17_operator_links_back_to_purchase_and_shows_words_first(client):
+    sid = sid_of(client, booking_reference="BK-3HT8WD", amount_satang=100000,
+                 cancel_url="http://localhost:8001/bookings/BK-3HT8WD")
+    pay(client, sid, card="4000000000009995")
+    pay(client, sid, card="4000000000005126")
+    refund(client, sid, amount=100000, ref="BK-3HT8WD", reason="operator_cancel")
+    html = client.get("/operator", auth=OPERATOR).get_data(as_text=True)
+    # Links come from the URLs Purchase sent (browser navigation only, PMT-R18).
+    assert html.count('href="http://localhost:8001/bookings/BK-3HT8WD"') >= 4
+    for href in ("/dashboard", "/operator/bookings", "/operator/spaces", "/operator/members"):
+        assert f'href="http://localhost:8001{href}"' in html, href
+    assert "Retry it from" in html and 'href="http://localhost:8001/operator/bookings?status=flagged">Purchase: All bookings</a>' in html
+    assert "Insufficient funds" in html and "insufficient_funds" in html
+    assert "Operator cancelled" in html and "Mon 5 Oct, 10:00" in html
+    assert "<h1 class=\"page-title\">Payment totals</h1>" in html
+    # The tabs read as Purchase's: Dashboard, Bookings, Spaces, Members, then this page, Payments.
+    assert '<a href="/operator" aria-current="page">Payments</a>' in html
+    assert 'class="brand" href="http://localhost:8001/"' in html
+    # Purchase's bar: My bookings and Log out (a POST to Purchase, a browser form, not a call: PMT-R18).
+    assert 'href="http://localhost:8001/bookings/mine">My bookings</a>' in html
+    assert '<form method="post" action="http://localhost:8001/logout"><button' in html
+
+
+def test_pmt_r17_a_refunded_session_says_so(client):
+    full = sid_of(client)
+    pay(client, full)
+    refund(client, full)
+    part = sid_of(client, booking_reference="BK-R8D3KF", amount_satang=75000)
+    pay(client, part)
+    refund(client, part, amount=37500, ref="BK-R8D3KF")
+    failed = sid_of(client, booking_reference="BK-3HT8WD", amount_satang=100000)
+    pay(client, failed, card="4000000000005126")
+    refund(client, failed, amount=100000, ref="BK-3HT8WD")
+    html = client.get("/operator", auth=OPERATOR).get_data(as_text=True)
+    rows = dict(re.findall(r'<tr data-session-id="[^"]+" data-booking-reference="(BK-\w+)" data-status="complete">(.*?)</tr>', html, re.S))
+    assert ">Refunded<" in rows["BK-7KQ2M9"] and "THB 450.00 refunded" in rows["BK-7KQ2M9"]
+    assert ">Partly refunded<" in rows["BK-R8D3KF"] and "THB 375.00 refunded" in rows["BK-R8D3KF"]
+    # A failed refund moved no money: the session still reads Paid.
+    assert ">Paid<" in rows["BK-3HT8WD"] and "refunded" not in rows["BK-3HT8WD"]
+
+
+def test_pmt_r07_an_unknown_link_offers_my_bookings_once_purchase_is_known(client):
+    r = client.get("/pay/ps_doesnotexist")
+    assert r.status_code == 404 and "Go to My bookings" not in r.get_data(as_text=True)
+    sid_of(client)
+    html = client.get("/pay/ps_doesnotexist").get_data(as_text=True)
+    assert 'href="http://localhost:8001/bookings/mine">Go to My bookings</a>' in html
+    assert "BK-7KQ2M9" not in html
+
+
 def test_pmt_r17_operator_page_needs_the_password(client):
     for auth in (None, ("operator", "wrong-password-123"), ("operator", "passwörd")):
         r = client.get("/operator", auth=auth)
         assert r.status_code == 401 and r.headers["WWW-Authenticate"].startswith("Basic")
+        # A cancelled prompt lands on a page that says why and offers the prompt again; no data.
+        html = r.get_data(as_text=True)
+        assert "Operator password required" in html and 'href="/operator">Enter password</a>' in html
+        assert "data-collected-satang" not in html
     assert client.get("/operator", auth=("anyone", OPERATOR[1])).status_code == 200
 
 

@@ -1,58 +1,196 @@
 {% extends "base.html" %}
-{% block title %}Payment operator{% endblock %}
+{% block title %}Payment totals{% endblock %}
+{% block body_class %}page-operator{% endblock %}
+{# Purchase's operator sections, in its order and words; Payments is this page. #}
+{% set sections = [("/dashboard", "Dashboard"), ("/operator/bookings", "Bookings"), ("/operator/spaces", "Spaces"), ("/operator/members", "Members")] %}
+{# purchase is the origin of the URLs Purchase sent with its sessions: links only, never a call (PMT-R18). #}
+{# The same bar and tabs as Purchase's operator section, so moving between the two feels like one app. #}
+{% block topnav %}
+  {# Purchase's bar: Spaces, My bookings, the Operator menu, and the account menu with Log out (a POST to
+     Purchase's /logout, PUR-R37). Payment does not know who is logged in on Purchase (it calls no service,
+     PMT-R18), so the account menu shows no name. With no session yet there is no Purchase origin: brand only. #}
+  <header class="topnav">
+    <div class="topnav-inner">
+      {% if purchase %}
+        <a class="brand" href="{{ purchase }}/"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking</a>
+        <nav class="topnav-links" aria-label="Main">
+          <a href="{{ purchase }}/">Spaces</a>
+          <a href="{{ purchase }}/bookings/mine">My bookings</a>
+          <details class="topnav-menu">
+            <summary class="is-active">Operator</summary>
+            <div class="topnav-menu-panel">
+              {% for href, label in sections %}<a href="{{ purchase ~ href }}">{{ label }}</a>{% endfor %}
+              <a href="/operator" aria-current="page">Payments</a>
+            </div>
+          </details>
+        </nav>
+        <div class="topnav-right">
+          <details class="topnav-menu topnav-account">
+            <summary class="topnav-user"><span class="topnav-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.3 3.8-5 7-5s5.8 1.7 7 5"/></svg></span><span class="topnav-name">Account</span></summary>
+            <div class="topnav-menu-panel">
+              <a href="{{ purchase }}/bookings/mine">My bookings</a>
+              <form method="post" action="{{ purchase }}/logout"><button class="btn btn-secondary btn-utility btn-block" type="submit">Log out</button></form>
+            </div>
+          </details>
+        </div>
+      {% else %}
+        <span class="brand"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking</span>
+      {% endif %}
+    </div>
+  </header>
+{% endblock %}
+{% block subnav %}
+  <div class="subnav">
+    <div class="subnav-inner">
+      <span class="subnav-title">Operator</span>
+      <nav class="tabs" aria-label="Operator">
+        {% if purchase %}{% for href, label in sections %}<a href="{{ purchase ~ href }}">{{ label }}</a>{% endfor %}{% endif %}
+        <a href="/operator" aria-current="page">Payments</a>
+      </nav>
+    </div>
+  </div>
+{% endblock %}
 {% block content %}
-  <h1>Payment operator</h1>
-  <p class="hint">All-time totals. Plan and free bookings never reach Payment.</p>
-  <ul class="cards">
-    <li data-collected-satang="{{ totals.collected }}">Collected<br><strong>{{ totals.collected|money }}</strong></li>
-    <li data-refunded-satang="{{ totals.refunded }}">Refunded<br><strong>{{ totals.refunded|money }}</strong></li>
-    <li data-net-satang="{{ totals.net }}">Net<br><strong>{{ totals.net|money }}</strong></li>
-    <li data-commission-satang="{{ totals.commission }}">Estimated platform commission (20% of net)<br><strong>{{ totals.commission|money }}</strong></li>
-  </ul>
+{% set paid_count = sessions|selectattr("shown_status", "equalto", "complete")|list|length %}
+{% set refunded_count = refunds|selectattr("status", "equalto", "succeeded")|list|length %}
+{% set follow_ids = follow_up|map(attribute="id")|list %}
+{% set session_badge = {"complete": ("badge-solid", "Paid"), "open": ("badge-outline", "Open"), "expired": ("badge-muted", "Expired")} %}
+<div class="page"><div class="container">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Payment totals</h1>
+      <p class="page-subtitle">All time, as of {{ now|local_time }}. Plan and free bookings never reach Payment.</p>
+    </div>
+  </header>
+
+  <div class="grid-4 stats">
+    <div class="stat" data-collected-satang="{{ totals.collected }}">
+      <span class="stat-label">Collected</span>
+      <span class="stat-value">{{ totals.collected|money }}</span>
+      <span class="stat-meta">{{ paid_count }} paid session{{ "" if paid_count == 1 else "s" }}</span>
+    </div>
+    <div class="stat" data-refunded-satang="{{ totals.refunded }}">
+      <span class="stat-label">Refunded</span>
+      <span class="stat-value">{{ totals.refunded|money }}</span>
+      <span class="stat-meta">{{ refunded_count }} refund{{ "" if refunded_count == 1 else "s" }} succeeded</span>
+    </div>
+    <div class="stat" data-net-satang="{{ totals.net }}">
+      <span class="stat-label">Net</span>
+      <span class="stat-value">{{ totals.net|money }}</span>
+      <span class="stat-meta">Collected minus refunded</span>
+    </div>
+    <div class="stat" data-commission-satang="{{ totals.commission }}">
+      <span class="stat-label">Estimated platform commission (20% of net)</span>
+      <span class="stat-value">{{ totals.commission|money }}</span>
+      <span class="stat-meta">Rounded half up to the satang</span>
+    </div>
+  </div>
 
   {% if follow_up %}
-    <h2>Failed refunds</h2>
-    <ul class="list">
-      {% for r in follow_up %}
-        <li class="status-busy" data-follow-up="{{ r.booking_reference }}">{{ r.booking_reference }}: refund attempt {{ r.attempt }} of {{ r.amount_satang|money }} failed — needs manual follow-up. Retry it from Purchase: All bookings</li>
-      {% endfor %}
-    </ul>
+    {% set attention = purchase ~ "/operator/bookings?status=flagged" %}
+    <div class="alert alert-strong follow-up" role="status">
+      <span class="alert-icon" aria-hidden="true">!</span>
+      <p class="alert-title">Needs manual follow-up</p>
+      <div class="alert-body">
+        <p>{{ follow_up|length }} refund{{ "" if follow_up|length == 1 else "s" }} did not reach the card. A line clears when a later refund attempt for the same booking succeeds.</p>
+        <ul class="follow-list">
+          {% for r in follow_up %}
+            <li data-follow-up="{{ r.booking_reference }}">
+              <a class="follow-ref cell-title" href="{{ r.cancel_url }}">{{ r.booking_reference }}</a>
+              <span class="follow-text">Refund attempt {{ r.attempt }} of <span class="num">{{ r.amount_satang|money }}</span> failed and needs manual follow-up. Retry it from <a href="{{ attention }}">Purchase: All bookings</a>.</span>
+              <span class="follow-time num">{{ r.created_at|local_time }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {# One failed refund: straight to its booking page, where Retry is. More: the Needs attention list. #}
+      <div class="alert-actions"><a class="btn btn-primary" href="{{ follow_up[0].cancel_url if follow_up|length == 1 else attention }}">Retry in Purchase</a></div>
+    </div>
   {% endif %}
 
-  <h2>Sessions</h2>
-  <table>
-    <tr><th>Booking</th><th>Amount</th><th>Status</th><th>Paid at</th></tr>
-    {% for s in sessions %}
-      <tr data-session-id="{{ s.id }}" data-booking-reference="{{ s.booking_reference }}" data-status="{{ s.shown_status }}">
-        <td>{{ s.booking_reference }}</td><td>{{ s.amount_satang|money }}</td><td>{{ s.shown_status }}</td><td>{{ s.paid_at|local_time }}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="4" class="hint">No sessions yet.</td></tr>
-    {% endfor %}
-  </table>
+  <section class="section records">
+    <div class="tabs" role="tablist" aria-label="Payment records" hidden>
+      <button type="button" role="tab" id="tab-sessions" aria-controls="sessions" aria-selected="true">Sessions <span class="tab-count">{{ sessions|length }}</span></button>
+      <button type="button" role="tab" id="tab-attempts" aria-controls="attempts" aria-selected="false" tabindex="-1">Attempts <span class="tab-count">{{ attempts|length }}</span></button>
+      <button type="button" role="tab" id="tab-refunds" aria-controls="refunds" aria-selected="false" tabindex="-1">Refunds <span class="tab-count">{{ refunds|length }}</span></button>
+    </div>
 
-  <h2>Attempts</h2>
-  <table>
-    <tr><th>Booking</th><th>Card</th><th>Result</th><th>Attempted at</th></tr>
-    {% for a in attempts %}
-      <tr data-session-id="{{ a.session_id }}" data-booking-reference="{{ a.booking_reference }}" data-attempt-result="{{ a.result }}"{% if a.decline_code %} data-decline-code="{{ a.decline_code }}"{% endif %}>
-        <td>{{ a.booking_reference }}</td><td>{{ a.brand }} ending {{ a.last4 }}</td>
-        <td>{{ a.result }}{% if a.decline_code %} ({{ a.decline_code }}){% endif %}</td><td>{{ a.attempted_at|local_time }}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="4" class="hint">No attempts yet.</td></tr>
-    {% endfor %}
-  </table>
+    <div class="tab-panel" id="sessions" role="tabpanel" aria-labelledby="tab-sessions">
+      <div class="section-header"><h2 class="section-title">Sessions</h2><p class="caption muted">Newest paid first, then unpaid by newest created</p></div>
+      {% if sessions %}
+        <div class="table-wrap"><table class="table table-stack">
+          <thead><tr><th scope="col">Booking</th><th scope="col">For</th><th scope="col">Status</th><th scope="col">Paid at</th><th scope="col" class="col-num">Amount</th></tr></thead>
+          <tbody>
+            {% for s in sessions %}
+              {% set badge = session_badge[s.shown_status] %}
+              {% if s.refunded_satang %}{% set badge = ("badge-muted", "Refunded" if s.refunded_satang >= s.amount_satang else "Partly refunded") %}{% endif %}
+              <tr data-session-id="{{ s.id }}" data-booking-reference="{{ s.booking_reference }}" data-status="{{ s.shown_status }}">
+                <td><a class="cell-title" href="{{ s.cancel_url }}">{{ s.booking_reference }}</a><span class="cell-sub mono">{{ s.id }}</span></td>
+                <td class="wrap cell-for">{{ s.description }}</td>
+                <td class="cell-status"><span class="badge {{ badge[0] }}">{{ badge[1] }}</span></td>
+                <td class="cell-time">{% if s.paid_at %}<span class="cell-label">Paid </span>{{ s.paid_at|local_time }}{% else %}<span class="muted">Not paid</span>{% endif %}</td>
+                <td class="col-num cell-money"><span class="cell-amount">{{ s.amount_satang|money }}</span>{% if s.refunded_satang %}<span class="cell-sub">{{ s.refunded_satang|money }} refunded</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+      {% else %}
+        <div class="empty">
+          <h3 class="empty-title">No payment sessions yet</h3>
+          <p class="empty-text">A session appears here when a Member continues to payment on Cowork Booking.</p>
+        </div>
+      {% endif %}
+    </div>
 
-  <h2>Refunds</h2>
-  <table>
-    <tr><th>Booking</th><th>Attempt</th><th>Amount</th><th>Reason</th><th>Status</th><th>Created at</th></tr>
-    {% for r in refunds %}
-      <tr data-session-id="{{ r.payment_session_id }}" data-booking-reference="{{ r.booking_reference }}" data-refund-attempt="{{ r.attempt }}" data-refund-status="{{ r.status }}">
-        <td>{{ r.booking_reference }}</td><td>{{ r.attempt }}</td><td>{{ r.amount_satang|money }}</td><td>{{ r.reason }}</td><td>{{ r.status }}</td><td>{{ r.created_at|local_time }}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="6" class="hint">No refunds yet.</td></tr>
-    {% endfor %}
-  </table>
+    <div class="tab-panel" id="attempts" role="tabpanel" aria-labelledby="tab-attempts">
+      <div class="section-header"><h2 class="section-title">Attempts</h2><p class="caption muted">Newest first · card brand and last 4 digits only</p></div>
+      {% if attempts %}
+        <div class="table-wrap"><table class="table table-stack">
+          <thead><tr><th scope="col">Booking</th><th scope="col">Card</th><th scope="col">Result</th><th scope="col">Attempted at</th></tr></thead>
+          <tbody>
+            {% for a in attempts %}
+              <tr data-session-id="{{ a.session_id }}" data-booking-reference="{{ a.booking_reference }}" data-attempt-result="{{ a.result }}"{% if a.decline_code %} data-decline-code="{{ a.decline_code }}"{% endif %}>
+                <td><a class="cell-title" href="{{ a.cancel_url }}">{{ a.booking_reference }}</a></td>
+                <td><span class="first-cap">{{ a.brand }} ending {{ a.last4 }}</span></td>
+                <td class="cell-status">{% if a.result == "succeeded" %}<span class="badge badge-solid">Succeeded</span>{% else %}<span class="badge badge-muted">Declined</span> <span class="cell-reason">{{ decline_words.get(a.decline_code, a.decline_code) }}</span>{% endif %}</td>
+                <td class="cell-time">{{ a.attempted_at|local_time }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+      {% else %}
+        <div class="empty">
+          <h3 class="empty-title">No card attempts yet</h3>
+          <p class="empty-text">Each press of Pay on the hosted page is listed here, with the card brand and last 4 digits only.</p>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="tab-panel" id="refunds" role="tabpanel" aria-labelledby="tab-refunds">
+      <div class="section-header"><h2 class="section-title">Refunds</h2><p class="caption muted">Newest first</p></div>
+      {% if refunds %}
+        <div class="table-wrap"><table class="table table-stack">
+          <thead><tr><th scope="col">Booking</th><th scope="col">Attempt</th><th scope="col">Status</th><th scope="col">Reason</th><th scope="col">Created at</th><th scope="col" class="col-num">Amount</th></tr></thead>
+          <tbody>
+            {% for r in refunds %}
+              <tr{% if r.id in follow_ids %} class="is-flagged"{% endif %} data-session-id="{{ r.payment_session_id }}" data-booking-reference="{{ r.booking_reference }}" data-refund-attempt="{{ r.attempt }}" data-refund-status="{{ r.status }}">
+                <td><a class="cell-title" href="{{ r.cancel_url }}">{{ r.booking_reference }}</a></td>
+                <td class="num"><span class="cell-label">Attempt </span>{{ r.attempt }}</td>
+                <td class="cell-status">{% if r.status == "succeeded" %}<span class="badge badge-solid">Refunded</span>{% elif r.id in follow_ids %}<span class="badge badge-attention">Refund failed</span>{% else %}<span class="badge badge-muted">Failed</span><span class="cell-sub">A later attempt succeeded</span>{% endif %}</td>
+                <td>{{ reason_words.get(r.reason, r.reason) }}</td>
+                <td class="cell-time">{{ r.created_at|local_time }}</td>
+                <td class="col-num">{{ r.amount_satang|money }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+      {% else %}
+        <div class="empty">
+          <h3 class="empty-title">No refunds yet</h3>
+          <p class="empty-text">A refund appears here when Purchase cancels a paid booking.</p>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+</div></div>
 {% endblock %}

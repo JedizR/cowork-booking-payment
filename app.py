@@ -49,7 +49,15 @@ def get_connection(database_url: str) -> psycopg.Connection:
 
 
 def local_time(value) -> str:
-    return value.astimezone(LOCAL_TZ).strftime("%Y-%m-%d %H:%M") if value else ""
+    """Bangkok time the way Purchase writes it: "Mon 5 Oct, 10:04"."""
+    if not value:
+        return ""
+    v = value.astimezone(LOCAL_TZ)
+    return f"{v:%a} {v.day} {v:%b}, {v:%H:%M}"
+
+
+def hhmm(value) -> str:
+    return value.astimezone(LOCAL_TZ).strftime("%H:%M")
 
 
 def api_error(status: int, code: str, message: str):
@@ -76,6 +84,7 @@ def create_app(database_url: str | None = None) -> Flask:
     # ponytail: one connection per worker (see gunicorn.conf.py), no reconnect.
     app.db = get_connection(database_url or os.getenv("DATABASE_URL", ""))
     app.add_template_filter(local_time, "local_time")
+    app.add_template_filter(hhmm, "hhmm")
     app.add_template_filter(payment.money, "money")
     db = app.db
 
@@ -213,6 +222,14 @@ def create_app(database_url: str | None = None) -> Flask:
 
     # --- Hosted page (Member's browser; the session id is the bearer link) -------------------
 
+    def purchase_origin():
+        """Purchase's origin, from the newest session's success_url (None before the first one).
+        Links only, never a call (PMT-R18)."""
+        row = db.execute(
+            "SELECT success_url FROM payment_sessions ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+        return payment.origin(row["success_url"]) if row else None
+
     def render_pay(row, state, status=200):
         now = clock.now()
         seconds_left = max(0, int((row["expires_at"] - now).total_seconds())) if row else 0
@@ -220,6 +237,8 @@ def create_app(database_url: str | None = None) -> Flask:
             "pay.html", s=row, state=state, seconds_left=seconds_left,
             minutes_left=ceil(seconds_left / 60), test_cards=payment.TEST_CARD_LIST,
             success_href=payment.success_redirect(row) if row else None,
+            # An unknown link still has a way out: My bookings on Purchase.
+            purchase=purchase_origin() if row is None else None,
         ), status
 
     @app.get("/pay/<session_id>")
@@ -273,7 +292,7 @@ def create_app(database_url: str | None = None) -> Flask:
         if not password or not hmac.compare_digest(
             password.encode("utf-8", "surrogateescape"), operator_password.encode()
         ):
-            return ("Operator password required", 401,
+            return (render_template("denied.html"), 401,
                     {"WWW-Authenticate": 'Basic realm="operator"'})
         now = clock.now()
         sessions = db.execute(
@@ -282,12 +301,24 @@ def create_app(database_url: str | None = None) -> Flask:
         for s in sessions:
             s["shown_status"] = payment.effective_status(s, now)
         attempts = db.execute(
-            "SELECT a.*, s.booking_reference FROM payment_attempts a"
+            "SELECT a.*, s.booking_reference, s.cancel_url FROM payment_attempts a"
             " JOIN payment_sessions s ON s.id = a.session_id ORDER BY a.attempted_at DESC"
         ).fetchall()
-        refunds = db.execute("SELECT * FROM refunds ORDER BY created_at DESC").fetchall()
+        # cancel_url is the booking's page on Purchase: every booking reference links there.
+        refunds = db.execute(
+            "SELECT r.*, s.cancel_url FROM refunds r JOIN payment_sessions s"
+            " ON s.id = r.payment_session_id ORDER BY r.created_at DESC"
+        ).fetchall()
+        # A paid session says it was refunded, from the same rows as the Refunds tab.
+        refunded_by = {}
+        for r in refunds:
+            if r["status"] == "succeeded":
+                refunded_by[r["payment_session_id"]] = refunded_by.get(r["payment_session_id"], 0) + r["amount_satang"]
+        for s in sessions:
+            s["refunded_satang"] = refunded_by.get(s["id"], 0)
         follow_up = db.execute(
-            "SELECT r.* FROM refunds r WHERE r.status = 'failed' AND NOT EXISTS ("
+            "SELECT r.*, s.cancel_url FROM refunds r JOIN payment_sessions s"
+            " ON s.id = r.payment_session_id WHERE r.status = 'failed' AND NOT EXISTS ("
             " SELECT 1 FROM refunds later WHERE later.payment_session_id = r.payment_session_id"
             " AND later.status = 'succeeded' AND later.attempt > r.attempt)"
             " ORDER BY r.created_at DESC"
@@ -303,7 +334,9 @@ def create_app(database_url: str | None = None) -> Flask:
         totals = {"collected": collected, "refunded": refunded, "net": net,
                   "commission": payment.commission(net)}
         return render_template("operator.html", sessions=sessions, attempts=attempts,
-                               refunds=refunds, follow_up=follow_up, totals=totals)
+                               refunds=refunds, follow_up=follow_up, totals=totals, now=now,
+                               purchase=purchase_origin(),
+                               decline_words=payment.DECLINE_WORDS, reason_words=payment.REASON_WORDS)
 
     # --- Ops ----------------------------------------------------------------------------------
 
