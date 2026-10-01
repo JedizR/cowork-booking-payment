@@ -141,10 +141,17 @@
   var strip = document.querySelector(".subnav .tabs");
   var current = strip && strip.querySelector("[aria-current]");
   if (current) {
-    var reveal = function () {
-      var over = current.getBoundingClientRect().right - strip.getBoundingClientRect().right;
-      if (over > 0) strip.scrollLeft += over + 24;
+    // Centred as on Purchase; an edge that hides a tab fades.
+    var fade = function () {
+      strip.classList.toggle("fade-left", strip.scrollLeft > 1);
+      strip.classList.toggle("fade-right", strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1);
     };
+    var reveal = function () {
+      var a = strip.getBoundingClientRect(), b = current.getBoundingClientRect();
+      strip.scrollLeft += b.left - a.left - (a.width - b.width) / 2;
+      fade();
+    };
+    strip.addEventListener("scroll", fade, { passive: true });
     reveal();
     if (document.fonts) document.fonts.ready.then(reveal);  // Inter is wider than the fallback
     window.addEventListener("resize", reveal);

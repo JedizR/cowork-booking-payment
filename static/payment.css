@@ -142,9 +142,6 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
   .checkout-form { padding-top: var(--sp-5); }
 }
 @media (max-width: 640px) {
-  /* All five operator tabs fit a 390 px phone, so "Payments" (current) shows without scrolling;
-     narrower phones scroll the strip to it (payment.js). */
-  .subnav .tabs { gap: var(--sp-3); }
   .table-stack td.cell-for { flex-basis: 100%; color: var(--ink-80); }
   /* A refunded amount keeps the total on line 1; "THB 150.00 refunded" goes to line 2, after the paid time. */
   .table-stack td.cell-money { display: contents; }
@@ -196,6 +193,14 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
 .topnav-avatar {
   flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
   background: var(--on-dark); color: var(--black);
+}
+/* Operator tabs on phones: all five fit a 390 px phone; on a narrower one the strip scrolls to "Payments"
+   and the edge that hides a tab fades (payment.js sets the classes). */
+@media (max-width: 640px) {
+  .subnav .tabs { gap: var(--sp-3); }
+  .subnav .tabs.fade-left { -webkit-mask-image: linear-gradient(to right, transparent, #000 32px); mask-image: linear-gradient(to right, transparent, #000 32px); }
+  .subnav .tabs.fade-right { -webkit-mask-image: linear-gradient(to left, transparent, #000 32px); mask-image: linear-gradient(to left, transparent, #000 32px); }
+  .subnav .tabs.fade-left.fade-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 32px calc(100% - 32px), transparent); mask-image: linear-gradient(to right, transparent, #000 32px calc(100% - 32px), transparent); }
 }
 
 /* Booking references in the tables: bold row titles, as in Purchase's tables. */
