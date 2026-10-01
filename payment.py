@@ -5,7 +5,7 @@ Pure functions only; the routes in app.py own the SQL and the transactions.
 
 import re
 import secrets
-from datetime import date, datetime
+from datetime import datetime
 from urllib.parse import urlparse
 
 from clock import LOCAL_TZ
@@ -174,28 +174,6 @@ def refund_json(row: dict) -> dict:
     keys = ("id", "payment_session_id", "booking_reference", "amount_satang", "reason",
             "attempt", "status")
     return {k: row[k] for k in keys}
-
-
-# Purchase writes "Meeting Room A, 2026-10-07 09:00-10:30" (CONTRACT.md, description).
-DESCRIPTION_TAIL_RE = re.compile(r", (\d{4}-\d{2}-\d{2}) ([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-4]):([0-5]\d)$")
-
-
-def line_item(description: str) -> dict | None:
-    """The checkout line item: name ("Meeting Room A"), when ("2026-10-07 09:00-10:30", kept on one
-    line) and meta ("Wednesday · 1 h 30 min"). None when the description has another shape."""
-    m = DESCRIPTION_TAIL_RE.search(description)
-    if m is None:
-        return None
-    try:
-        meta = date.fromisoformat(m[1]).strftime("%A")
-    except ValueError:
-        return None
-    minutes = int(m[4]) * 60 + int(m[5]) - int(m[2]) * 60 - int(m[3])
-    if minutes > 0:
-        hours, rest = divmod(minutes, 60)
-        meta += " · " + " ".join(p for p in (f"{hours} h" if hours else "",
-                                             f"{rest} min" if rest else "") if p)
-    return {"name": description[:m.start()], "when": description[m.start() + 2:], "meta": meta}
 
 
 def origin(url: str) -> str:

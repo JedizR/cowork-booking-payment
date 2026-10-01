@@ -10,14 +10,15 @@
 .page-pay .footer .container { max-width: calc(840px + 2 * var(--sp-7) + 2 * var(--gutter)); }
 .checkout-summary { padding-top: var(--sp-7); }
 .checkout-summary .back-link { margin-bottom: var(--sp-5); }
-.checkout-return { margin-top: var(--sp-3); }
+.checkout-return { margin-top: var(--sp-3); text-wrap: pretty; }
 .checkout-merchant .brand-mark { background: var(--ink); color: var(--on-dark); }
 .checkout-label { margin-top: var(--sp-6); }
 .checkout-amount { font-size: 48px; letter-spacing: -0.03em; margin-bottom: var(--sp-6); }
 
 .checkout-item { background: var(--canvas); border-radius: var(--r-lg); padding: var(--sp-5); margin-bottom: var(--sp-5); }
-.checkout-item-name { font-weight: 600; line-height: 1.3; margin: 0; }
-.checkout-item-meta { font-size: var(--fs-caption); color: var(--muted); margin: var(--sp-1) 0 0; }
+/* The description is Purchase's text, any length: it wraps (even a long unbroken name), never overflows. */
+.checkout-item-name { font-weight: 600; line-height: 1.35; margin: 0; overflow-wrap: anywhere; text-wrap: pretty; }
+.end-for { text-wrap: pretty; }
 .checkout-item .summary-total { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top-color: var(--hairline); }
 
 /* The test-mode banner folds its card list into a <details>. */

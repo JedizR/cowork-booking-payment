@@ -22,11 +22,10 @@
         <a class="back-link" href="{{ s.cancel_url }}">Back to booking</a>
         <div class="checkout-merchant"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking</div>
         <p class="checkout-label">Booking {{ s.booking_reference }}</p>
-        <p class="checkout-amount">{{ amount }}</p>
+        <h1 class="checkout-amount">{{ amount }}</h1>
         <div class="checkout-item">
-          <p class="checkout-item-name">{{ description(s, item) }}</p>
-          {% if item %}<p class="checkout-item-meta">{{ item.meta }}</p>{% endif %}
-          <div class="summary-total"><span>Total due</span><span>{{ amount }}</span></div>
+          <p class="checkout-item-name">{{ s.description }}</p>
+          <div class="summary-total"><span>Total due</span><span class="num">{{ amount }}</span></div>
         </div>
         <p class="countdown{% if seconds_left <= 120 %} is-urgent{% endif %}" id="countdown" data-seconds-left="{{ seconds_left }}" data-pay-by="{{ pay_by }}">Pay by {{ pay_by }} ({% if seconds_left < 60 %}less than 1 min left{% else %}{{ minutes_left }} min left{% endif %})</p>
         {# PMT-R07 row 2: Back changes nothing; the same link works until expires_at. #}
@@ -101,7 +100,7 @@
         <p class="end-amount num">{{ s.amount_satang|money }}</p>
         <dl class="dl end-receipt">
           <dt>Booking</dt><dd>{{ s.booking_reference }}</dd>
-          <dt>For</dt><dd>{{ description(s, item) }}</dd>
+          <dt>For</dt><dd class="end-for">{{ s.description }}</dd>
           {% if s.paid_at %}<dt>Paid at</dt><dd>{{ s.paid_at|local_time }}</dd>{% endif %}
         </dl>
         <a class="btn btn-primary btn-lg btn-block" href="{{ success_href }}">Return to booking</a>

@@ -159,19 +159,20 @@ def test_pmt_r07_hosted_page_shows_amount_countdown_banner_and_ignores_query(cli
     assert client.get("/pay/ps_doesnotexist").status_code == 404
 
 
-def test_pmt_r07_line_item_reads_the_description_and_falls_back_to_it_verbatim(client):
-    assert payment.line_item("Meeting Room A, 2026-10-07 09:00-10:30") == {
-        "name": "Meeting Room A", "when": "2026-10-07 09:00-10:30", "meta": "Wednesday · 1 h 30 min"}
-    assert payment.line_item("Hall, East, 2026-10-05 13:00-13:30")["meta"] == "Monday · 30 min"
-    assert payment.line_item("Pod, 2026-10-08 08:00-12:00")["meta"] == "Thursday · 4 h"
-    for odd in ("Meeting Room A", "Pod, 2026-02-30 09:00-10:00", "Pod, 2026-10-07 9:00-10:00", ""):
-        assert payment.line_item(odd) is None, odd
-    sid = sid_of(client, description="Desk <b>7</b>")
-    html = client.get(f"/pay/{sid}").get_data(as_text=True)
-    assert "Desk &lt;b&gt;7&lt;/b&gt;" in html and "Wednesday" not in html
-    html = client.get(f"/pay/{sid_of(client, booking_reference='BK-3HT8WD')}").get_data(as_text=True)
+def test_pmt_r07_line_item_is_the_description_exactly_as_purchase_sent_it(client):
+    # Purchase owns the words and the time format; Payment never re-reads or reformats them.
+    for ref, description in (("BK-1AAAAA", "Meeting Room A, Thu 8 Oct, 09:00\u201311:00"),
+                             ("BK-2BBBBB", "The Long Boardroom on the Fourth Floor, East Wing, Thu 8 Oct, 09:00\u201313:00"),
+                             ("BK-3CCCCC", "Meeting Room A, 2026-10-07 09:00-10:30")):
+        sid = sid_of(client, booking_reference=ref, description=description)
+        html = client.get(f"/pay/{sid}").get_data(as_text=True)
+        assert f'<p class="checkout-item-name">{description}</p>' in html, description
+        assert "Wednesday" not in html and "Thursday" not in html
+        pay(client, sid)
+        assert f'<dd class="end-for">{description}</dd>' in client.get(f"/pay/{sid}").get_data(as_text=True)
+    html = client.get(f"/pay/{sid_of(client, booking_reference='BK-3HT8WD', description='Desk <b>7</b>')}").get_data(as_text=True)
+    assert "Desk &lt;b&gt;7&lt;/b&gt;" in html
     assert '<p class="checkout-label">Booking BK-3HT8WD</p>' in html
-    assert '<p class="checkout-item-meta">Wednesday · 1 h 30 min</p>' in html
 
 
 def test_pmt_r08_card_field_errors_are_flashed_and_store_nothing(client):
