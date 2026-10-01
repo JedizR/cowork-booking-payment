@@ -100,6 +100,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
+/* Short pages: main grows so the footer sits at the bottom of the window, never above a white band. */
+body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+body > main { flex: 1 0 auto; }
 
 h1, h2, h3, h4 { margin: 0; font-weight: 600; color: var(--ink); }
 h1, .h1 { font-size: var(--fs-title); line-height: 1.12; letter-spacing: -0.022em; }
@@ -536,6 +539,28 @@ a.chip:hover, button.chip:hover, label.chip:hover { border-color: var(--ink); te
 .table .row-actions form { display: inline; margin: 0; }
 .cell-sub { display: block; font-size: var(--fs-caption); color: var(--muted); }
 .table tr.is-flagged td:first-child { background: linear-gradient(var(--ink), var(--ink)) left / 3px 100% no-repeat; }
+.cell-label { display: none; }
+/* .table-stack: on phones each row becomes a card instead of scrolling sideways.
+   Line 1: first cell, then td.cell-status and td.col-num. Line 2: the other cells, wrapped.
+   Line 3: td.row-actions. .cell-label shows a word that the hidden header gave ("Attempt 2"). */
+@media (max-width: 640px) {
+  .table-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .table-stack, .table-stack tbody { display: block; }
+  .table-stack tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--sp-3); padding: 14px var(--sp-4); border-bottom: 1px solid var(--divider-soft); }
+  .table-stack tbody tr:last-child { border-bottom: 0; }
+  .table-stack tr::after { content: ""; order: 2; flex-basis: 100%; }
+  .table-stack td { display: block; padding: 0 !important; border: 0; white-space: normal; font-size: var(--fs-caption); color: var(--muted); order: 3; }
+  .table-stack td:first-child { order: 0; flex: 1 0 auto; white-space: nowrap; font-size: var(--fs-callout); color: var(--ink); }
+  .table-stack td.cell-status, .table-stack td.col-num { order: 1; color: var(--ink); }
+  .table-stack td.col-num { font-size: var(--fs-callout); font-weight: 600; }
+  .table-stack td .cell-sub.mono, .table-stack td.cell-status .cell-sub { display: none; }
+  .table-stack td.row-actions { order: 4; flex-basis: 100%; display: flex; flex-wrap: wrap; gap: var(--sp-2); text-align: left; margin-top: var(--sp-1); }
+  .table-stack td.row-actions > * + * { margin-left: 0; }
+  .table-stack td:empty { display: none; }
+  .table-stack .cell-label { display: inline; }
+  .table-stack tr.is-flagged { border-left: 3px solid var(--ink); padding-left: calc(var(--sp-4) - 3px); }
+  .table-stack tr.is-flagged td:first-child { background: none; }
+}
 
 .list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--hairline); border-radius: var(--r-lg); background: var(--canvas); overflow: hidden; }
 .list-item { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--sp-4); padding: var(--sp-4) var(--sp-5); }
@@ -677,11 +702,20 @@ a.chip:hover, button.chip:hover, label.chip:hover { border-color: var(--ink); te
 .slot-reason { color: var(--ink-80); font-size: var(--fs-fine); letter-spacing: 0; }
 .slot.is-booked .slot-reason { background: var(--parchment); padding: 2px 6px; margin-left: -6px; border-radius: var(--r-xs); }
 
-/* free: blank; hover and focus show a hint */
+/* free: a quiet outlined cell, so the day reads as time you can tap (Calendly); hover and focus show the hint */
+.slot:not(:disabled):not(.is-selected):not(.is-preview) .slot-body::before {
+  content: ""; position: absolute; inset: 3px 0 2px; border: 1px solid var(--hairline); border-radius: var(--r-sm); pointer-events: none;
+}
 .slot:not(:disabled):not(.is-selected):not(.is-booked):not(.is-unavailable):hover .slot-body { background: var(--parchment); }
-.slot[data-hint]:not(:disabled):not(.is-selected):not(.is-preview):hover .slot-body::after,
-.slot[data-hint]:not(:disabled):not(.is-selected):focus-visible .slot-body::after {
-  content: attr(data-hint); font-size: var(--fs-caption); font-weight: 600; color: var(--ink);
+/* The hint sits on the button itself: attr() reads the element that owns the pseudo-element, and data-hint is on .slot. */
+.slot { position: relative; }
+.slot::after {
+  position: absolute; top: 0; bottom: 0; left: calc(var(--gutter-w) + var(--sp-4)); display: flex; align-items: center;
+  font-size: var(--fs-caption); line-height: 1.2; pointer-events: none;
+}
+.slot[data-hint]:not(:disabled):not(.is-selected):not(.is-preview):hover::after,
+.slot[data-hint]:not(:disabled):not(.is-selected):focus-visible::after {
+  content: attr(data-hint); font-weight: 600; color: var(--ink);
 }
 .slot:focus-visible { outline: none; }
 .slot:focus-visible .slot-body { outline: 2px solid var(--black); outline-offset: -2px; border-radius: var(--r-sm); }
@@ -691,8 +725,9 @@ a.chip:hover, button.chip:hover, label.chip:hover { border-color: var(--ink); te
   background-image: linear-gradient(135deg, var(--fill-strong) 6.25%, transparent 6.25% 50%, var(--fill-strong) 50% 56.25%, transparent 56.25%);
   background-size: 8px 8px; background-origin: border-box;   /* rows are 40 / 48 px: the stripes run on across rows */
 }
-/* unavailable for another reason ("Too soon"): flat quiet fill */
-.slot.is-unavailable .slot-body { background: var(--pearl); color: var(--muted); }
+/* unavailable for another reason ("Too soon"): dotted, so it differs from free (outlined), booked (hatched) and the preview (flat grey) */
+.slot.is-unavailable .slot-body, .legend-swatch.is-unavailable { background: var(--parchment) radial-gradient(var(--field-border) 0.8px, transparent 1.2px) 0 0 / 8px 8px; color: var(--muted); }
+.timeline-slots > .slot.is-unavailable .slot-time { color: var(--muted-48); font-weight: 400; }
 .slot:disabled, .slot.is-booked, .slot.is-unavailable { cursor: not-allowed; }
 a.slot.is-booked, a.slot.is-unavailable { pointer-events: none; }
 .slot.is-booked + .slot.is-booked .slot-reason, .slot.is-unavailable + .slot.is-unavailable .slot-reason { visibility: hidden; }
@@ -714,7 +749,6 @@ a.slot.is-booked, a.slot.is-unavailable { pointer-events: none; }
 .legend-item { display: inline-flex; align-items: center; gap: var(--sp-2); }
 .legend-swatch { width: 18px; height: 12px; border-radius: 3px; background: var(--canvas); border: 1px solid var(--hairline); }
 .legend-swatch.is-booked { background: var(--parchment) linear-gradient(135deg, var(--fill-strong) 6.25%, transparent 6.25% 50%, var(--fill-strong) 50% 56.25%, transparent 56.25%) 0 0 / 8px 8px; }
-.legend-swatch.is-unavailable { background: var(--parchment); }
 .legend-swatch.is-selected { background: var(--ink); border-color: var(--ink); }
 
 /* Booking picker layout: date and details left, timeline right; on phones date, time, details. */
@@ -837,7 +871,7 @@ a.slot.is-booked, a.slot.is-unavailable { pointer-events: none; }
 .bar-row { display: grid; grid-template-columns: minmax(84px, 120px) minmax(0, 1fr) minmax(48px, auto); align-items: center; gap: var(--sp-3); font-size: var(--fs-caption); }
 .bar-label { color: var(--ink-80); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar-track { height: 10px; border-radius: var(--r-pill); background: var(--parchment); overflow: hidden; }
-.bar { display: block; height: 100%; width: var(--value, 0%); min-width: 2px; border-radius: var(--r-pill); background: var(--ink); }
+.bar { display: block; height: 100%; width: var(--value, 0%); border-radius: var(--r-pill); background: var(--ink); }
 .bar-muted { background: var(--field-border); }
 .bar-value { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
@@ -909,6 +943,11 @@ a.slot.is-booked, a.slot.is-unavailable { pointer-events: none; }
   .btn-utility, .chip, .topnav-btn { min-height: var(--h-control); }
   .stepper-btn { width: 44px; height: 44px; }
   .timeline { --slot-h: 48px; }
+  .topnav-links a, .topnav-menu summary, .topnav-link { display: inline-flex; align-items: center; min-height: var(--h-control); }
+  .segmented span, .segmented a { min-height: var(--h-control); }
+  .cal-nav .btn-icon { width: 44px; height: 44px; min-height: 44px; }
+  /* No hover on touch: every free row says what a tap does ("Start 09:30", then "End 11:00"). */
+  .slot[data-hint]:not(:disabled):not(.is-selected):not(.is-preview)::after { content: attr(data-hint); color: var(--muted); }
 }
 
 /* --------------------------------------------------------------------------

@@ -113,21 +113,7 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
   .checkout-form { padding-top: var(--sp-5); }
 }
 @media (max-width: 640px) {
-  /* Phone tables: each row stacks. Booking, status and amount lead; the rest wraps below. */
-  .table-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .table-stack, .table-stack tbody { display: block; }
-  .table-stack tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--sp-3); padding: 14px var(--sp-4); border-bottom: 1px solid var(--divider-soft); }
-  .table-stack tbody tr:last-child { border-bottom: 0; }
-  .table-stack tr::after { content: ""; order: 2; flex-basis: 100%; }
-  .table-stack td { display: block; padding: 0 !important; border: 0; white-space: normal; font-size: var(--fs-caption); color: var(--muted); order: 3; }
-  .table-stack td:first-child { order: 0; flex: 1 0 auto; white-space: nowrap; font-size: var(--fs-callout); color: var(--ink); }
-  .table-stack td.cell-status, .table-stack td.col-num { order: 1; color: var(--ink); }
-  .table-stack td.col-num { font-size: var(--fs-callout); font-weight: 600; }
-  .table-stack td .cell-sub.mono { display: none; }
-  .table-stack td.cell-status .cell-sub { display: none; }
-  .table-stack .cell-label { display: inline; }
-  .table-stack tr.is-flagged { border-left: 3px solid var(--ink); padding-left: calc(var(--sp-4) - 3px); }
-  .table-stack tr.is-flagged td:first-child { background: none; }
+  /* Phone tables stack into cards: .table-stack in the shared style.css. */
   /* Phone KPIs: one list, label left and value right. */
   .stats { grid-template-columns: minmax(0, 1fr); gap: 0; border: 1px solid var(--hairline); border-radius: var(--r-lg); overflow: hidden; }
   .stats .stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px var(--sp-3); border: 0; border-radius: 0; padding: 14px var(--sp-4); }
