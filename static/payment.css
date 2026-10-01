@@ -146,6 +146,10 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
      narrower phones scroll the strip to it (payment.js). */
   .subnav .tabs { gap: var(--sp-3); }
   .table-stack td.cell-for { flex-basis: 100%; color: var(--ink-80); }
+  /* A refunded amount keeps the total on line 1; "THB 150.00 refunded" goes to line 2, after the paid time. */
+  .table-stack td.cell-money { display: contents; }
+  .table-stack td.cell-money .cell-amount { order: 1; }
+  .table-stack td.cell-money .cell-sub { order: 3; font-weight: 400; }
   /* Phone tables stack into cards: .table-stack in the shared style.css. */
   /* Phone KPIs: one list, label left and value right. */
   .stats { grid-template-columns: minmax(0, 1fr); gap: 0; border: 1px solid var(--hairline); border-radius: var(--r-lg); overflow: hidden; }

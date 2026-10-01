@@ -309,6 +309,13 @@ def create_app(database_url: str | None = None) -> Flask:
             "SELECT r.*, s.cancel_url FROM refunds r JOIN payment_sessions s"
             " ON s.id = r.payment_session_id ORDER BY r.created_at DESC"
         ).fetchall()
+        # A paid session says it was refunded, from the same rows as the Refunds tab.
+        refunded_by = {}
+        for r in refunds:
+            if r["status"] == "succeeded":
+                refunded_by[r["payment_session_id"]] = refunded_by.get(r["payment_session_id"], 0) + r["amount_satang"]
+        for s in sessions:
+            s["refunded_satang"] = refunded_by.get(s["id"], 0)
         follow_up = db.execute(
             "SELECT r.*, s.cancel_url FROM refunds r JOIN payment_sessions s"
             " ON s.id = r.payment_session_id WHERE r.status = 'failed' AND NOT EXISTS ("

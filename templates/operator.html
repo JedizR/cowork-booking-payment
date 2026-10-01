@@ -123,12 +123,13 @@
           <tbody>
             {% for s in sessions %}
               {% set badge = session_badge[s.shown_status] %}
+              {% if s.refunded_satang %}{% set badge = ("badge-muted", "Refunded" if s.refunded_satang >= s.amount_satang else "Partly refunded") %}{% endif %}
               <tr data-session-id="{{ s.id }}" data-booking-reference="{{ s.booking_reference }}" data-status="{{ s.shown_status }}">
                 <td><a href="{{ s.cancel_url }}">{{ s.booking_reference }}</a><span class="cell-sub mono">{{ s.id }}</span></td>
                 <td class="wrap cell-for">{{ s.description }}</td>
                 <td class="cell-status"><span class="badge {{ badge[0] }}">{{ badge[1] }}</span></td>
                 <td class="cell-time">{% if s.paid_at %}<span class="cell-label">Paid </span>{{ s.paid_at|local_time }}{% else %}<span class="muted">Not paid</span>{% endif %}</td>
-                <td class="col-num">{{ s.amount_satang|money }}</td>
+                <td class="col-num cell-money"><span class="cell-amount">{{ s.amount_satang|money }}</span>{% if s.refunded_satang %}<span class="cell-sub">{{ s.refunded_satang|money }} refunded</span>{% endif %}</td>
               </tr>
             {% endfor %}
           </tbody>

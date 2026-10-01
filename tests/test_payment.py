@@ -383,6 +383,24 @@ def test_pmt_r17_operator_links_back_to_purchase_and_shows_words_first(client):
     assert '<form method="post" action="http://localhost:8001/logout"><button' in html
 
 
+def test_pmt_r17_a_refunded_session_says_so(client):
+    full = sid_of(client)
+    pay(client, full)
+    refund(client, full)
+    part = sid_of(client, booking_reference="BK-R8D3KF", amount_satang=75000)
+    pay(client, part)
+    refund(client, part, amount=37500, ref="BK-R8D3KF")
+    failed = sid_of(client, booking_reference="BK-3HT8WD", amount_satang=100000)
+    pay(client, failed, card="4000000000005126")
+    refund(client, failed, amount=100000, ref="BK-3HT8WD")
+    html = client.get("/operator", auth=OPERATOR).get_data(as_text=True)
+    rows = dict(re.findall(r'<tr data-session-id="[^"]+" data-booking-reference="(BK-\w+)" data-status="complete">(.*?)</tr>', html, re.S))
+    assert ">Refunded<" in rows["BK-7KQ2M9"] and "THB 450.00 refunded" in rows["BK-7KQ2M9"]
+    assert ">Partly refunded<" in rows["BK-R8D3KF"] and "THB 375.00 refunded" in rows["BK-R8D3KF"]
+    # A failed refund moved no money: the session still reads Paid.
+    assert ">Paid<" in rows["BK-3HT8WD"] and "refunded" not in rows["BK-3HT8WD"]
+
+
 def test_pmt_r07_an_unknown_link_offers_my_bookings_once_purchase_is_known(client):
     r = client.get("/pay/ps_doesnotexist")
     assert r.status_code == 404 and "Go to My bookings" not in r.get_data(as_text=True)
