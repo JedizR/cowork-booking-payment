@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cowork Booking — {% block title %}{% endblock %}</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d1d1f'/%3E%3Ctext x='16' y='22.5' font-family='Inter,Arial,sans-serif' font-size='19' font-weight='700' text-anchor='middle' fill='%23fff'%3EC%3C/text%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -11,12 +12,15 @@
     <script src="{{ url_for('static', filename='payment.js') }}" defer></script>
   </head>
   <body class="{% block body_class %}{% endblock %}">
+    {% block topnav %}
     <header class="topnav">
       <div class="topnav-inner">
-        <span class="brand"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking<span class="brand-context">· Payment</span></span>
+        {% block brand %}<span class="brand"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking<span class="brand-context">· Payment</span></span>{% endblock %}
         {% block topnav_right %}{% endblock %}
       </div>
     </header>
+    {% endblock %}
+    {% block subnav %}{% endblock %}
     <main>{% block content %}{% endblock %}</main>
     <footer class="footer">
       <div class="container footer-inner">

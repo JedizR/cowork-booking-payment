@@ -16,7 +16,12 @@
         countdown.textContent = "Time to pay has run out";
         countdown.classList.remove("is-urgent");
         countdown.classList.add("is-over");
+        // The form goes away, as on the server's expired page: no card input that cannot be used.
         if (payButton) payButton.disabled = true;
+        ["pay-panel", "come-back"].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.hidden = true;
+        });
         var over = document.getElementById("time-over");
         if (over) over.hidden = false;
         return;
@@ -56,7 +61,9 @@
     });
     cvc.addEventListener("input", function () { cvc.value = digits(cvc.value).slice(0, 4); });
 
+    var again = document.getElementById("card-again");
     var showError = function (input, text) {
+      if (again) again.hidden = true;
       [number, expiry, cvc].forEach(function (el) { el.removeAttribute("aria-invalid"); });
       field.classList.toggle("has-error", !!text);
       error.textContent = text || "";

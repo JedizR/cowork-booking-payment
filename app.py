@@ -49,7 +49,15 @@ def get_connection(database_url: str) -> psycopg.Connection:
 
 
 def local_time(value) -> str:
-    return value.astimezone(LOCAL_TZ).strftime("%Y-%m-%d %H:%M") if value else ""
+    """Bangkok time the way Purchase writes it: "Mon 5 Oct, 10:04"."""
+    if not value:
+        return ""
+    v = value.astimezone(LOCAL_TZ)
+    return f"{v:%a} {v.day} {v:%b}, {v:%H:%M}"
+
+
+def hhmm(value) -> str:
+    return value.astimezone(LOCAL_TZ).strftime("%H:%M")
 
 
 def api_error(status: int, code: str, message: str):
@@ -76,6 +84,7 @@ def create_app(database_url: str | None = None) -> Flask:
     # ponytail: one connection per worker (see gunicorn.conf.py), no reconnect.
     app.db = get_connection(database_url or os.getenv("DATABASE_URL", ""))
     app.add_template_filter(local_time, "local_time")
+    app.add_template_filter(hhmm, "hhmm")
     app.add_template_filter(payment.money, "money")
     db = app.db
 

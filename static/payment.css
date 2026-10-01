@@ -2,15 +2,15 @@
 
 .brand-context { font-weight: 400; color: var(--on-dark-muted); margin-left: -4px; }
 
-/* --- Hosted checkout: the split fills the window between the nav and the footer ------------- */
-.page-pay { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
-.page-pay > main { flex: 1; display: flex; flex-direction: column; }
+/* --- Hosted checkout (Stripe-style): no global bar; the split fills the window above the footer --- */
+.page-pay > main { display: flex; flex-direction: column; }
 .page-pay .footer { margin-top: 0; border-top: 1px solid var(--hairline); padding: var(--sp-4) 0; }
 .page-pay .checkout { flex: 1; }
-/* The nav and footer line up with the two 420 px checkout columns. */
-.page-pay .topnav-inner, .page-pay .footer .container { max-width: calc(840px + 2 * var(--sp-7) + 2 * var(--gutter)); }
+/* The footer lines up with the two 420 px checkout columns. */
+.page-pay .footer .container { max-width: calc(840px + 2 * var(--sp-7) + 2 * var(--gutter)); }
 .checkout-summary { padding-top: var(--sp-7); }
 .checkout-summary .back-link { margin-bottom: var(--sp-5); }
+.checkout-return { margin-top: var(--sp-3); }
 .checkout-merchant .brand-mark { background: var(--ink); color: var(--on-dark); }
 .checkout-label { margin-top: var(--sp-6); }
 .checkout-amount { font-size: 48px; letter-spacing: -0.03em; margin-bottom: var(--sp-6); }
@@ -49,9 +49,12 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
 .pay-alert .alert-icon { background: var(--ink); color: var(--on-dark); border-color: var(--ink); }
 .pay-form { display: flex; flex-direction: column; gap: var(--sp-5); }
 .pay-form .field-group input { font-variant-numeric: tabular-nums; }
-.pay-form .field.has-error .field-group { border: 2px solid var(--ink); }
-.pay-form .field.has-error .field-group input { border: 0; padding: 11px 13px; }
-.pay-form .field-group input[aria-invalid="true"] { background: var(--parchment); }
+/* A card error keeps the group's dividers; only the failing input gets the 2 px ink edge. */
+.pay-form .field-group input { border: 0; padding: 12px 14px; }
+.pay-form .field-group-row > input + input { border-left: 1px solid var(--hairline); }
+.pay-form .field.has-error .field-group { border-color: var(--ink); }
+.pay-form .field-group input[aria-invalid="true"] { background: var(--parchment); outline: 2px solid var(--ink); outline-offset: -2px; }
+.pay-form .help { margin: var(--sp-1) 0 0; }
 .alert-body, .end-text { text-wrap: pretty; }
 .pay-form .btn-lg { margin-top: var(--sp-1); }
 .pay-fine { text-align: center; margin-top: calc(-1 * var(--sp-2)); }
@@ -68,6 +71,9 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
 .end-icon.is-missing { border: 1.5px solid var(--ink); }
 .end-icon.is-missing::before { content: "?"; display: grid; place-items: center; font-size: 28px; font-weight: 600; line-height: 1; }
 .end-card .eyebrow { margin-bottom: var(--sp-2); }
+.end-merchant { justify-content: center; margin-bottom: var(--sp-6); }
+/* Time over on an open page: the same focused end state, in place of the form. */
+.time-over { text-align: center; padding: var(--sp-7) 0; }
 .end-amount { font-size: var(--fs-display); font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; margin: 0 0 var(--sp-5); }
 .end-receipt { text-align: left; margin-bottom: var(--sp-6); border-top: 1px solid var(--divider-soft); }
 .end-title { font-size: var(--fs-heading); line-height: 1.2; letter-spacing: -0.018em; margin: 0 auto var(--sp-3); max-width: 22ch; }

@@ -170,7 +170,8 @@ def test_pmt_r07_line_item_reads_the_description_and_falls_back_to_it_verbatim(c
     html = client.get(f"/pay/{sid}").get_data(as_text=True)
     assert "Desk &lt;b&gt;7&lt;/b&gt;" in html and "Wednesday" not in html
     html = client.get(f"/pay/{sid_of(client, booking_reference='BK-3HT8WD')}").get_data(as_text=True)
-    assert "Booking BK-3HT8WD · Wednesday · 1 h 30 min" in html
+    assert '<p class="checkout-label">Booking BK-3HT8WD</p>' in html
+    assert '<p class="checkout-item-meta">Wednesday · 1 h 30 min</p>' in html
 
 
 def test_pmt_r08_card_field_errors_are_flashed_and_store_nothing(client):
