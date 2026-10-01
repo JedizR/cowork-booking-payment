@@ -222,6 +222,14 @@ def create_app(database_url: str | None = None) -> Flask:
 
     # --- Hosted page (Member's browser; the session id is the bearer link) -------------------
 
+    def purchase_origin():
+        """Purchase's origin, from the newest session's success_url (None before the first one).
+        Links only, never a call (PMT-R18)."""
+        row = db.execute(
+            "SELECT success_url FROM payment_sessions ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+        return payment.origin(row["success_url"]) if row else None
+
     def render_pay(row, state, status=200):
         now = clock.now()
         seconds_left = max(0, int((row["expires_at"] - now).total_seconds())) if row else 0
@@ -318,7 +326,7 @@ def create_app(database_url: str | None = None) -> Flask:
                   "commission": payment.commission(net)}
         return render_template("operator.html", sessions=sessions, attempts=attempts,
                                refunds=refunds, follow_up=follow_up, totals=totals, now=now,
-                               purchase=payment.origin(sessions[0]["success_url"]) if sessions else None,
+                               purchase=purchase_origin(),
                                decline_words=payment.DECLINE_WORDS, reason_words=payment.REASON_WORDS)
 
     # --- Ops ----------------------------------------------------------------------------------

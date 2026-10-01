@@ -158,3 +158,38 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
   .end-card { padding: var(--sp-6) var(--sp-5) var(--sp-5); }
   .test-banner-text { display: none; }
 }
+
+/* --- Operator top bar: the same Operator menu and account menu as Purchase's bar (purchase.css) --- */
+.topnav-menu { position: relative; flex: none; }
+.topnav-menu summary {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: var(--r-pill); list-style: none; cursor: pointer;
+  color: var(--on-dark-muted); font-size: var(--fs-caption); white-space: nowrap; transition: color var(--dur) var(--ease);
+}
+.topnav-menu summary::-webkit-details-marker { display: none; }
+.topnav-menu summary::after { content: ""; width: 6px; height: 6px; margin-top: -3px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.topnav-menu summary:hover, .topnav-menu[open] summary { color: var(--on-dark); }
+.topnav-menu summary.is-active { color: var(--on-dark); background: rgba(255, 255, 255, 0.14); }
+.topnav-menu-panel {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 60; min-width: 220px; padding: 6px;
+  display: flex; flex-direction: column; background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-md);
+}
+.topnav-menu-panel a {
+  display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 9px 12px; border-radius: var(--r-sm);
+  color: var(--ink); font-size: var(--fs-caption); line-height: 1.3; text-decoration: none; white-space: nowrap;
+}
+.topnav-links .topnav-menu-panel a { color: var(--ink); }
+.topnav-menu-panel a:hover { background: var(--parchment); color: var(--ink); text-decoration: none; }
+.topnav-links .topnav-menu-panel a[aria-current="page"] { background: var(--parchment); color: var(--ink); font-weight: 600; }
+.topnav-links .topnav-menu-panel a:last-child { margin-top: 4px; border-top: 1px solid var(--divider-soft); border-radius: 0 0 var(--r-sm) var(--r-sm); }
+.topnav-menu-panel :focus-visible { outline-color: var(--black); }
+@media (max-width: 833px) { .topnav-links .topnav-menu-panel { position: fixed; top: 96px; left: var(--gutter); right: var(--gutter); } }
+.topnav-account summary { padding: 4px 10px 4px 4px; gap: var(--sp-2); color: var(--on-dark); max-width: 300px; }
+.topnav-account summary:hover, .topnav-account[open] summary { background: rgba(255, 255, 255, 0.12); }
+.topnav-account .topnav-menu-panel { left: auto; right: 0; min-width: 240px; }
+/* Log out is a real button under a rule, not a menu row. */
+.topnav-account .topnav-menu-panel form { display: block; margin: 4px 0 0; padding: 8px 6px 4px; border-top: 1px solid var(--divider-soft); }
+.topnav-user { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.topnav-avatar {
+  flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--on-dark); color: var(--black);
+}

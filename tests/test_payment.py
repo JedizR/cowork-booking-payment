@@ -378,6 +378,9 @@ def test_pmt_r17_operator_links_back_to_purchase_and_shows_words_first(client):
     # The tabs read as Purchase's: Dashboard, Bookings, Spaces, Members, then this page, Payments.
     assert '<a href="/operator" aria-current="page">Payments</a>' in html
     assert 'class="brand" href="http://localhost:8001/"' in html
+    # Purchase's bar: My bookings and Log out (a POST to Purchase, a browser form, not a call: PMT-R18).
+    assert 'href="http://localhost:8001/bookings/mine">My bookings</a>' in html
+    assert '<form method="post" action="http://localhost:8001/logout"><button' in html
 
 
 def test_pmt_r17_operator_page_needs_the_password(client):

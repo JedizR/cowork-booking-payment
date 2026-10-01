@@ -1,17 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Payment totals{% endblock %}
 {% block body_class %}page-operator{% endblock %}
+{# Purchase's operator sections, in its order and words; Payments is this page. #}
+{% set sections = [("/dashboard", "Dashboard"), ("/operator/bookings", "Bookings"), ("/operator/spaces", "Spaces"), ("/operator/members", "Members")] %}
 {# purchase is the origin of the URLs Purchase sent with its sessions: links only, never a call (PMT-R18). #}
 {# The same bar and tabs as Purchase's operator section, so moving between the two feels like one app. #}
 {% block topnav %}
+  {# Purchase's bar: Spaces, My bookings, the Operator menu, and the account menu with Log out (a POST to
+     Purchase's /logout, PUR-R37). Payment does not know who is logged in on Purchase (it calls no service,
+     PMT-R18), so the account menu shows no name. With no session yet there is no Purchase origin: brand only. #}
   <header class="topnav">
     <div class="topnav-inner">
-      {% set tag = "a" if purchase else "span" %}
-      <{{ tag }} class="brand"{% if purchase %} href="{{ purchase }}/"{% endif %}><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking</{{ tag }}>
-      <nav class="topnav-links" aria-label="Main">
-        {% if purchase %}<a href="{{ purchase }}/">Spaces</a>{% endif %}
-        <a class="is-active" href="{{ purchase ~ '/dashboard' if purchase else '/operator' }}">Operator</a>
-      </nav>
+      {% if purchase %}
+        <a class="brand" href="{{ purchase }}/"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking</a>
+        <nav class="topnav-links" aria-label="Main">
+          <a href="{{ purchase }}/">Spaces</a>
+          <a href="{{ purchase }}/bookings/mine">My bookings</a>
+          <details class="topnav-menu">
+            <summary class="is-active">Operator</summary>
+            <div class="topnav-menu-panel">
+              {% for href, label in sections %}<a href="{{ purchase ~ href }}">{{ label }}</a>{% endfor %}
+              <a href="/operator" aria-current="page">Payments</a>
+            </div>
+          </details>
+        </nav>
+        <div class="topnav-right">
+          <details class="topnav-menu topnav-account">
+            <summary class="topnav-user"><span class="topnav-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.3 3.8-5 7-5s5.8 1.7 7 5"/></svg></span><span class="topnav-name">Account</span></summary>
+            <div class="topnav-menu-panel">
+              <a href="{{ purchase }}/bookings/mine">My bookings</a>
+              <form method="post" action="{{ purchase }}/logout"><button class="btn btn-secondary btn-utility btn-block" type="submit">Log out</button></form>
+            </div>
+          </details>
+        </div>
+      {% else %}
+        <span class="brand"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking</span>
+      {% endif %}
     </div>
   </header>
 {% endblock %}
@@ -20,12 +44,7 @@
     <div class="subnav-inner">
       <span class="subnav-title">Operator</span>
       <nav class="tabs" aria-label="Operator">
-        {% if purchase %}
-          <a href="{{ purchase }}/dashboard">Dashboard</a>
-          <a href="{{ purchase }}/operator/bookings">Bookings</a>
-          <a href="{{ purchase }}/operator/spaces">Spaces</a>
-          <a href="{{ purchase }}/operator/members">Members</a>
-        {% endif %}
+        {% if purchase %}{% for href, label in sections %}<a href="{{ purchase ~ href }}">{{ label }}</a>{% endfor %}{% endif %}
         <a href="/operator" aria-current="page">Payments</a>
       </nav>
     </div>

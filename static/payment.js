@@ -127,6 +127,16 @@
     });
   }
 
+  // --- Operator page: the header menus close on an outside click or Escape, as on Purchase ------
+  var menus = document.querySelectorAll("details.topnav-menu");
+  document.addEventListener("click", function (event) {
+    menus.forEach(function (d) { if (d.open && !d.contains(event.target)) d.open = false; });
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    menus.forEach(function (d) { if (d.open) { d.open = false; d.querySelector("summary").focus(); } });
+  });
+
   // --- Operator page: on phones the tab strip scrolls so the current tab ("Payments") shows ---
   var strip = document.querySelector(".subnav .tabs");
   var current = strip && strip.querySelector("[aria-current]");
