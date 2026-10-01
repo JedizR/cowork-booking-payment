@@ -5,7 +5,7 @@ Pure functions only; the routes in app.py own the SQL and the transactions.
 
 import re
 import secrets
-from datetime import datetime
+from datetime import date, datetime
 from urllib.parse import urlparse
 
 from clock import LOCAL_TZ
@@ -176,6 +176,28 @@ def refund_json(row: dict) -> dict:
     return {k: row[k] for k in keys}
 
 
+# Purchase writes "Meeting Room A, 2026-10-07 09:00-10:30" (CONTRACT.md, description).
+DESCRIPTION_TAIL_RE = re.compile(r", (\d{4}-\d{2}-\d{2}) ([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-4]):([0-5]\d)$")
+
+
+def line_item(description: str) -> dict | None:
+    """The checkout line item: name ("Meeting Room A"), when ("2026-10-07 09:00-10:30", kept on one
+    line) and meta ("Wednesday · 1 h 30 min"). None when the description has another shape."""
+    m = DESCRIPTION_TAIL_RE.search(description)
+    if m is None:
+        return None
+    try:
+        meta = date.fromisoformat(m[1]).strftime("%A")
+    except ValueError:
+        return None
+    minutes = int(m[4]) * 60 + int(m[5]) - int(m[2]) * 60 - int(m[3])
+    if minutes > 0:
+        hours, rest = divmod(minutes, 60)
+        meta += " · " + " ".join(p for p in (f"{hours} h" if hours else "",
+                                             f"{rest} min" if rest else "") if p)
+    return {"name": description[:m.start()], "when": description[m.start() + 2:], "meta": meta}
+
+
 def success_redirect(row: dict) -> str:
     sep = "&" if "?" in row["success_url"] else "?"
     return f"{row['success_url']}{sep}session_id={row['id']}"
@@ -225,13 +247,13 @@ TEST_CARDS = {
     "4000000000000069": "expired_card",
     "4000000000000119": "processing_error",
 }
-TEST_CARD_LIST = [
-    ("4242424242424242", "success"),
-    ("4000000000000002", "generic_decline"),
-    ("4000000000009995", "insufficient_funds"),
-    ("4000000000000069", "expired_card"),
-    ("4000000000000119", "processing_error"),
-    ("4000000000005126", "success; the first refund fails"),
+TEST_CARD_LIST = [  # the test-mode banner (PMT-R07), in plain words
+    ("4242424242424242", "Succeeds"),
+    ("4000000000000002", "Declined"),
+    ("4000000000009995", "Declined: insufficient funds"),
+    ("4000000000000069", "Declined: expired card"),
+    ("4000000000000119", "Declined: processing error"),
+    ("4000000000005126", "Succeeds; its first refund fails"),
 ]
 DECLINE_TEXT = {  # PMT-T09
     "generic_decline": "Your card was declined.",

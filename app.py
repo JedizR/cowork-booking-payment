@@ -220,6 +220,7 @@ def create_app(database_url: str | None = None) -> Flask:
             "pay.html", s=row, state=state, seconds_left=seconds_left,
             minutes_left=ceil(seconds_left / 60), test_cards=payment.TEST_CARD_LIST,
             success_href=payment.success_redirect(row) if row else None,
+            item=payment.line_item(row["description"]) if row else None,
         ), status
 
     @app.get("/pay/<session_id>")
@@ -303,7 +304,7 @@ def create_app(database_url: str | None = None) -> Flask:
         totals = {"collected": collected, "refunded": refunded, "net": net,
                   "commission": payment.commission(net)}
         return render_template("operator.html", sessions=sessions, attempts=attempts,
-                               refunds=refunds, follow_up=follow_up, totals=totals)
+                               refunds=refunds, follow_up=follow_up, totals=totals, now=now)
 
     # --- Ops ----------------------------------------------------------------------------------
 

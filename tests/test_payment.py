@@ -7,6 +7,7 @@ import threading
 
 from conftest import AUTH, OPERATOR, STANDARD, new_session, pay, refund, set_clock
 
+import payment
 from app import create_app
 
 
@@ -147,13 +148,29 @@ def test_pmt_r07_hosted_page_shows_amount_countdown_banner_and_ignores_query(cli
     sid = sid_of(client)
     set_clock(client, "2026-10-05T10:01:00+07:00")
     html = client.get(f"/pay/{sid}?error=Card+refused").get_data(as_text=True)
-    for text in ("THB 450.00", "Booking BK-7KQ2M9", "Meeting Room A, 2026-10-07 09:00-10:30",
+    for text in ("THB 450.00", "Booking BK-7KQ2M9",
                  "Pay by 10:13 (12 min left)", 'data-seconds-left="720"', "4000000000005126",
                  'name="card_number"', 'href="http://localhost:8001/bookings/BK-7KQ2M9"'):
         assert text in html, text
+    # The description reads as sent; markup inside it (a no-wrap span) is free.
+    assert "Meeting Room A, 2026-10-07 09:00-10:30" in re.sub(r"<[^>]+>", "", html)
     assert "Card refused" not in html
     assert "<title>Cowork Booking — Pay BK-7KQ2M9</title>" in html
     assert client.get("/pay/ps_doesnotexist").status_code == 404
+
+
+def test_pmt_r07_line_item_reads_the_description_and_falls_back_to_it_verbatim(client):
+    assert payment.line_item("Meeting Room A, 2026-10-07 09:00-10:30") == {
+        "name": "Meeting Room A", "when": "2026-10-07 09:00-10:30", "meta": "Wednesday · 1 h 30 min"}
+    assert payment.line_item("Hall, East, 2026-10-05 13:00-13:30")["meta"] == "Monday · 30 min"
+    assert payment.line_item("Pod, 2026-10-08 08:00-12:00")["meta"] == "Thursday · 4 h"
+    for odd in ("Meeting Room A", "Pod, 2026-02-30 09:00-10:00", "Pod, 2026-10-07 9:00-10:00", ""):
+        assert payment.line_item(odd) is None, odd
+    sid = sid_of(client, description="Desk <b>7</b>")
+    html = client.get(f"/pay/{sid}").get_data(as_text=True)
+    assert "Desk &lt;b&gt;7&lt;/b&gt;" in html and "Wednesday" not in html
+    html = client.get(f"/pay/{sid_of(client, booking_reference='BK-3HT8WD')}").get_data(as_text=True)
+    assert "Booking BK-3HT8WD · Wednesday · 1 h 30 min" in html
 
 
 def test_pmt_r08_card_field_errors_are_flashed_and_store_nothing(client):

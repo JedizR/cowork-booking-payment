@@ -4,12 +4,25 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cowork Booking — {% block title %}{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='payment.css') }}">
+    <script src="{{ url_for('static', filename='payment.js') }}" defer></script>
   </head>
-  <body>
-    <nav class="site-nav">
-      <span class="brand">Cowork Booking · Payment</span>
-    </nav>
-    {% block content %}{% endblock %}
+  <body class="{% block body_class %}{% endblock %}">
+    <header class="topnav">
+      <div class="topnav-inner">
+        <span class="brand"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking<span class="brand-context">· Payment</span></span>
+        {% block topnav_right %}{% endblock %}
+      </div>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+    <footer class="footer">
+      <div class="container footer-inner">
+        <span>Test mode. No real money moves.</span>
+        <span>Times in Bangkok (UTC+7) · prices in THB</span>
+      </div>
+    </footer>
   </body>
 </html>
