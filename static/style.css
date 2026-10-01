@@ -540,6 +540,13 @@ a.chip:hover, button.chip:hover, label.chip:hover { border-color: var(--ink); te
 .table .row-actions form { display: inline; margin: 0; }
 .cell-sub { display: block; font-size: var(--fs-caption); color: var(--muted); }
 .table tr.is-flagged td:first-child { background: linear-gradient(var(--ink), var(--ink)) left / 3px 100% no-repeat; }
+/* One table-link style: a bold .cell-title link (a reference, "1 upcoming"). In a .table-link table it covers its
+   row, so the whole row opens the record; the row's own buttons and links stay on top. */
+.table .cell-title { font-weight: 600; color: var(--ink); text-decoration: none; }
+.table .cell-title:hover { text-decoration: underline; }
+.table-link tbody tr { position: relative; }
+.table-link .cell-title::after { content: ""; position: absolute; inset: 0; }
+.table-link td :is(a:not(.cell-title), button, form, input, select) { position: relative; z-index: 1; }
 .cell-label { display: none; }
 /* .table-stack: on phones each row becomes a card instead of scrolling sideways.
    Line 1: first cell, then td.cell-status and td.col-num. Line 2: the other cells, wrapped.
@@ -704,14 +711,14 @@ a.chip:hover, button.chip:hover, label.chip:hover { border-color: var(--ink); te
 .slot.is-booked .slot-reason { background: var(--parchment); padding: 2px 6px; margin-left: -6px; border-radius: var(--r-xs); }
 
 /* free: a quiet outlined cell, so the day reads as time you can tap (Calendly); hover and focus show the hint */
-.slot:not(:disabled):not(.is-selected):not(.is-preview) .slot-body::before {
+.slot:not(:disabled):not(.is-booked):not(.is-unavailable):not(.is-selected):not(.is-preview) .slot-body::before {
   content: ""; position: absolute; inset: 3px 0 2px; border: 1px solid var(--fill-strong); border-radius: var(--r-sm); pointer-events: none;
 }
 .slot:not(:disabled):not(.is-selected):not(.is-booked):not(.is-unavailable):hover .slot-body,
-.slot:not(:disabled):not(.is-selected):not(.is-preview):focus-visible .slot-body { background: var(--parchment); }
+.slot:not(:disabled):not(.is-booked):not(.is-unavailable):not(.is-selected):not(.is-preview):focus-visible .slot-body { background: var(--parchment); }
 /* A press shows the pick at once (no wait for the click), and a tap never waits for a double-tap zoom. */
 .slot { touch-action: manipulation; }
-.slot:not(:disabled):not(.is-selected):active .slot-body { background: var(--ink); color: var(--on-dark); }
+.slot:not(:disabled):not(.is-booked):not(.is-unavailable):not(.is-selected):active .slot-body { background: var(--ink); color: var(--on-dark); }
 /* The hint sits on the button itself: attr() reads the element that owns the pseudo-element, and data-hint is on .slot. */
 .slot { position: relative; }
 .slot::after {
@@ -923,7 +930,7 @@ html:has(.sticky-bar) { scroll-padding-bottom: 200px; }
   .page-header > :first-child { flex: none; }
   .subnav-inner { gap: var(--sp-4); }
   .subnav-title { display: none; }
-  .subnav .tabs { margin-left: 0; gap: var(--sp-4); }
+  .subnav .tabs { margin-left: 0; gap: var(--sp-2); flex: 1 1 auto; justify-content: space-between; }  /* the row fills the width; all five operator tabs fit at 390 px */
   .stat { padding: var(--sp-4); }
   .stat-value { font-size: var(--fs-heading); }
   .alert { grid-template-columns: auto minmax(0, 1fr); padding: var(--sp-4); }
@@ -944,6 +951,8 @@ html:has(.sticky-bar) { scroll-padding-bottom: 200px; }
 }
 @media (max-width: 419px) {
   .topnav-user { max-width: 120px; }
+  .subnav .tabs a, .subnav .tabs button { font-size: 13px; }
+  .subnav .tabs a > [aria-hidden="true"] { display: none; }  /* the decorative ↗: the five tabs fit at 375 px */
 }
 /* Touch: every target at least 44px. */
 @media (pointer: coarse) {
