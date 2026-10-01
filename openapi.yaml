@@ -1,732 +1,667 @@
 openapi: 3.0.3
 info:
-  title: Spacey API
-  description: >
-    A space booking system: find a space, book it, pay once or subscribe,
-    and get access through a mocked lock.
-
-
-    This document covers the JSON API only. A few routes render HTML pages
-    for a browser instead (the space list at `/`, the booking form's target
-    `POST /spaces/{spaceId}/book`, the booking confirmation page and its
-    Pay/Unlock buttons, and `/dashboard`) and are not listed here.
-  version: "1.0"
+  title: Cowork Booking Payment API
+  version: contract-v1-draft
+  description: |
+    Provider Payment, consumer Purchase. State proposed (M2 draft).
+    Contract text: ../purchase-payment.md. Rules PMT-R01 to PMT-R20.
+    Money is integer satang, currency THB. Times are ISO 8601 with an offset.
+    Natural keys instead of an Idempotency-Key header: booking_reference for a
+    session, (payment_session_id, attempt) for a refund.
+    Errors: {"error": {"code": "...", "message": "..."}}.
+    The hosted page's card form body carries no schema constraints on purpose: an invalid or
+    missing field answers 303 to /pay/<id> with the flash, never 400.
 servers:
-  - url: /
-    description: Same host the app is running on (local, container, or the deployed URL).
-
+  - url: http://payment:8000
+    description: Internal URL used by Purchase (PAYMENT_INTERNAL_URL)
+  - url: http://localhost:8002
+    description: Public URL for the browser (PUBLIC_URL)
 tags:
-  - name: spaces
-  - name: bookings
-  - name: members
-  - name: accounts
-    description: Registration and login. See issue #120.
-  - name: operations
-    description: Health and business metrics.
-
+  - name: api
+    description: JSON API, bearer PAYMENT_API_TOKEN, Purchase only
+  - name: hosted-page
+    description: HTML pages for the Member's browser
+  - name: operator
+    description: HTML page for the Operator, HTTP Basic
+  - name: ops
+    description: Health and the test clock
 paths:
-  /health:
-    get:
-      tags: [operations]
-      summary: Check the app and database are reachable.
-      responses:
-        "200":
-          description: Healthy.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string, enum: [ok] }
-                  revision:
-                    type: string
-                    description: The `APP_REVISION` environment variable, or `local` if unset.
-                required: [status, revision]
-        "503":
-          description: The database is unreachable.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string, enum: [error] }
-                  error: { type: string, example: database unreachable }
-                required: [status, error]
-
-  /spaces:
-    get:
-      tags: [spaces]
-      summary: List every space.
-      description: >
-        `available` normally reflects this exact instant. Pass `start_time`
-        and `end_time` together to check availability for a specific window
-        instead - the same back-to-back-is-fine overlap rule booking uses.
-      parameters:
-        - $ref: "#/components/parameters/StartTime"
-        - $ref: "#/components/parameters/EndTime"
-      responses:
-        "200":
-          description: The full space list.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  spaces:
-                    type: array
-                    items: { $ref: "#/components/schemas/Space" }
-                required: [spaces]
-        "400":
-          $ref: "#/components/responses/BadWindow"
+  /payment-sessions:
     post:
-      tags: [spaces]
-      summary: Create a space.
+      tags: [api]
+      operationId: createPaymentSession
+      summary: Create the checkout for one held booking (repeat returns the stored session)
+      description: |
+        Order of checks: token (401), fields (400), repeat by booking_reference
+        (200 same amount and currency, 409 other amount), insert (201).
+        Rules PMT-R01, PMT-R02, PMT-R03, PMT-R04.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name: { type: string, example: Meeting Room A }
-                capacity:
-                  type: integer
-                  minimum: 1
-                  example: 6
-                price_cents:
-                  type: integer
-                  minimum: 0
-                  default: 0
-                  description: >
-                    Per-hour rate. A booking is charged this rate times the
-                    hours booked, rounded to whole cents.
-                  example: 1500
-              required: [name, capacity]
+              $ref: '#/components/schemas/SessionCreate'
+            examples:
+              standard:
+                value:
+                  booking_reference: BK-7KQ2M9
+                  amount_satang: 45000
+                  currency: THB
+                  description: Meeting Room A, 2026-10-07 09:00-10:30
+                  success_url: http://localhost:8001/bookings/BK-7KQ2M9/return
+                  cancel_url: http://localhost:8001/bookings/BK-7KQ2M9
+                  expires_at: '2026-10-05T10:13:00+07:00'
       responses:
-        "201":
-          description: Created.
+        '201':
+          description: New session, status open
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id: { type: integer, example: 1 }
-                  name: { type: string }
-                  capacity: { type: integer }
-                  price_cents: { type: integer }
-                required: [id, name, capacity, price_cents]
-        "400":
-          description: >
-            `name and capacity are required` (either is missing), `name must
-            not be empty`, `capacity must be a whole number of at least 1`,
-            or `price_cents must be a non-negative integer`.
+                $ref: '#/components/schemas/Session'
+              examples:
+                created:
+                  $ref: '#/components/examples/SessionOpen'
+        '200':
+          description: Repeat with the same amount and currency; the stored session, unchanged, in any status
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-
-  /spaces/{spaceId}:
-    parameters:
-      - $ref: "#/components/parameters/SpaceId"
+              schema:
+                $ref: '#/components/schemas/Session'
+              examples:
+                repeat_open:
+                  $ref: '#/components/examples/SessionOpen'
+                repeat_paid:
+                  $ref: '#/components/examples/SessionPaid'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The booking reference already has a session with another amount; nothing changes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: session_conflict
+                  message: BK-7KQ2M9 already has a payment session for 45000 THB
+  /payment-sessions/{id}:
     get:
-      tags: [spaces]
-      summary: Get one space.
-      description: Same availability rule as `GET /spaces` - pass a window, or omit both params for "right now".
+      tags: [api]
+      operationId: getPaymentSession
+      summary: Read one session (Purchase reconciles with it)
+      description: Rules PMT-R01, PMT-R05, PMT-R10, PMT-R11.
+      security:
+        - bearerAuth: []
       parameters:
-        - $ref: "#/components/parameters/StartTime"
-        - $ref: "#/components/parameters/EndTime"
+        - $ref: '#/components/parameters/SessionId'
       responses:
-        "200":
-          description: The space.
+        '200':
+          description: The session; status expired once clock.now() reaches expires_at
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Space" }
-        "400":
-          $ref: "#/components/responses/BadWindow"
-        "404":
-          $ref: "#/components/responses/SpaceNotFound"
-    patch:
-      tags: [spaces]
-      summary: Update a space.
-      description: >
-        Only the fields present in the body are changed; everything else
-        keeps its current value. Changing the price does not affect
-        bookings already made at the old price (see `amount_cents` on a
-        booking).
+              schema:
+                $ref: '#/components/schemas/Session'
+              examples:
+                open:
+                  $ref: '#/components/examples/SessionOpen'
+                paid:
+                  $ref: '#/components/examples/SessionPaid'
+                expired:
+                  $ref: '#/components/examples/SessionExpired'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /payment-sessions/{id}/expire:
+    post:
+      tags: [api]
+      operationId: expirePaymentSession
+      summary: Expire an open session and return its final state (a paid session stays paid)
+      description: |
+        No request body. The expire and a payment attempt lock the same row;
+        exactly one wins. A repeat returns the final state. Rules PMT-R01, PMT-R06, PMT-R12.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Final state of the session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+              examples:
+                was_open:
+                  $ref: '#/components/examples/SessionExpired'
+                already_paid:
+                  $ref: '#/components/examples/SessionPaid'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /refunds:
+    post:
+      tags: [api]
+      operationId: createRefund
+      summary: Refund a paid session; the outcome is final in the answer
+      description: |
+        Order of checks: token (401), fields (400), session (404), reference (409),
+        repeat key (payment_session_id, attempt) (200 same amount, 409 other amount),
+        balance (409), insert (201). Rules PMT-R01, PMT-R14, PMT-R15, PMT-R16.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name: { type: string }
-                capacity: { type: integer, minimum: 1 }
-                price_cents: { type: integer, minimum: 0 }
-              minProperties: 1
-              example: { price_cents: 2000 }
+              $ref: '#/components/schemas/RefundCreate'
+            examples:
+              member_cancel:
+                value:
+                  payment_session_id: ps_Q7mZ3xK9vT2bN8rL4wYc1A
+                  booking_reference: BK-7KQ2M9
+                  amount_satang: 45000
+                  reason: member_cancel
+                  attempt: 1
+              operator_retry:
+                value:
+                  payment_session_id: ps_R2kW8nT5vQ9mX3bL7yHd4E
+                  booking_reference: BK-3HT8WD
+                  amount_satang: 100000
+                  reason: member_cancel
+                  attempt: 2
       responses:
-        "200":
-          description: The updated space.
+        '201':
+          description: New refund; status succeeded or failed
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Space" }
-        "400":
-          description: >
-            `provide name, capacity and/or price_cents to update` (empty
-            body), or the same per-field messages as `POST /spaces`.
+              schema:
+                $ref: '#/components/schemas/Refund'
+              examples:
+                succeeded:
+                  $ref: '#/components/examples/RefundSucceeded'
+                failed_first_refund_card_5126:
+                  $ref: '#/components/examples/RefundFailed'
+        '200':
+          description: Repeat of the same key and amount; the stored refund, even if it failed
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-        "404":
-          $ref: "#/components/responses/SpaceNotFound"
-    delete:
-      tags: [spaces]
-      summary: Delete a space.
-      description: Refused while the space has any bookings, past or present - cancel them first.
-      responses:
-        "204":
-          description: Deleted.
-        "404":
-          $ref: "#/components/responses/SpaceNotFound"
-        "409":
-          description: The space still has bookings.
+              schema:
+                $ref: '#/components/schemas/Refund'
+              examples:
+                repeat:
+                  $ref: '#/components/examples/RefundSucceeded'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Reference mismatch, same attempt with another amount, or over the amount collected
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-              example: { error: "space has bookings, cancel them first" }
-
-  /spaces/{spaceId}/bookings:
-    parameters:
-      - $ref: "#/components/parameters/SpaceId"
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                reference_mismatch:
+                  value:
+                    error:
+                      code: reference_mismatch
+                      message: booking_reference does not match the session
+                refund_conflict:
+                  value:
+                    error:
+                      code: refund_conflict
+                      message: refund attempt 1 already exists with a different amount
+                refund_exceeds_collected:
+                  value:
+                    error:
+                      code: refund_exceeds_collected
+                      message: refund exceeds amount collected
+  /pay/{id}:
     get:
-      tags: [bookings]
-      summary: List a space's bookings.
-      responses:
-        "200":
-          description: That space's bookings, earliest first.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/BookingList" }
-        "404":
-          $ref: "#/components/responses/SpaceNotFound"
-    post:
-      tags: [bookings]
-      summary: Book a space.
-      description: >
-        Unpaid on creation, unless `member` has an active subscription (see
-        `POST /members/{name}/subscribe`), in which case it is created
-        already paid and costs nothing extra. A later `POST
-        /bookings/{bookingId}/pay` is needed otherwise, before `.../unlock`
-        will work.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                member:
-                  type: string
-                  default: guest
-                  description: >
-                    Defaults to `guest` if omitted - there is no
-                    requirement yet that a real name is given (issue #22).
-                  example: member-a
-                start_time:
-                  type: string
-                  format: date-time
-                  description: ISO 8601 with a timezone.
-                  example: "2026-09-25T09:00:00Z"
-                end_time:
-                  type: string
-                  format: date-time
-                  example: "2026-09-25T10:00:00Z"
-                party_size:
-                  type: integer
-                  minimum: 1
-                  default: 1
-                  description: Must not exceed the space's capacity.
-              required: [start_time, end_time]
-      responses:
-        "201":
-          description: Booked.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Booking" }
-        "400":
-          description: >
-            `start_time and end_time are required (ISO 8601 with
-            timezone)`, `end_time must be after start_time`, `party_size
-            must be a whole number of at least 1`, or `party_size {n}
-            exceeds this space's capacity of {capacity}`.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-        "404":
-          $ref: "#/components/responses/SpaceNotFound"
-        "409":
-          description: The space is already booked for an overlapping time.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-              example: { error: "space is already booked for that time" }
-
-  /bookings:
-    get:
-      tags: [bookings]
-      summary: List every booking, across all spaces.
-      responses:
-        "200":
-          description: Every booking, earliest first.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/BookingList" }
-
-  /bookings/{bookingId}:
-    parameters:
-      - $ref: "#/components/parameters/BookingId"
-    get:
-      tags: [bookings]
-      summary: Get one booking.
-      responses:
-        "200":
-          description: The booking.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Booking" }
-        "404":
-          $ref: "#/components/responses/BookingNotFound"
-    delete:
-      tags: [bookings]
-      summary: Cancel a booking.
-      description: >
-        Deletes the booking outright, whether or not it was paid - there is
-        no cancelled/refunded record kept yet (see issue #82).
-      responses:
-        "200":
-          description: The booking as it was just before it was deleted.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Booking" }
-        "404":
-          $ref: "#/components/responses/BookingNotFound"
-
-  /bookings/{bookingId}/pay:
-    post:
-      tags: [bookings]
-      summary: Pay for a booking (mocked).
-      description: >
-        No real payment provider or network - card details are checked for
-        shape only (right length, digits only, expiry not in the past),
-        not a real Luhn/network check (see issue #119). Only the card's
-        last 4 digits are ever stored or returned; the full number and CVC
-        are never persisted. Paying an already-paid booking is a no-op
-        (no card required for that retry), so a retried request can't
-        charge twice. Pass `force_failure: true` with a still-valid card
-        to make this attempt fail on purpose, for testing the failure
-        path - the booking is left unpaid.
+      tags: [hosted-page]
+      operationId: showHostedPage
+      security: []
+      summary: Hosted mock checkout page (no login, no token)
+      description: |
+        open: amount, reference, description, countdown ("Pay by 10:13 (N min left)" with
+        data-seconds-left from clock.now(); the script never reads the browser clock), test-mode
+        banner, card form, Pay, Back.
+        complete: "Paid" and a link to success_url?session_id=<id>.
+        expired: "This payment session has expired. Nothing was charged." and "Back to your booking".
+        After a decline, the flashed reason inside an element data-decline-code="<code>".
+        Rules PMT-R07, PMT-R05, PMT-R10.
       parameters:
-        - $ref: "#/components/parameters/BookingId"
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: The page for the session's current status
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: Unknown session; no booking data
+          content:
+            text/html:
+              schema:
+                type: string
+    post:
+      tags: [hosted-page]
+      operationId: payOnHostedPage
+      security: []
+      summary: Submit the card form
+      description: |
+        Order of checks: unknown id 404; complete 303 to success_url with no attempt; expired or
+        at or after expires_at 409; card fields 303 to /pay/<id> with the flashed message ("Card
+        number must be 13 to 19 digits", "CVC must be 3 or 4 digits", "Expiry must be MM/YY",
+        "The expiry date has passed") and no attempt; then the attempt. Success 303 to
+        success_url?session_id=<id>. Decline 303 to /pay/<id>; the attempt is stored and the GET
+        shows the flashed reason inside data-decline-code="<code>". The 409 renders the expired
+        page: "This payment session has expired. Nothing was charged." and "Back to your booking".
+        Only brand and last4 are stored.
+        Rules PMT-R08, PMT-R09, PMT-R10, PMT-R11, PMT-R12, PMT-R13.
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
       requestBody:
         required: true
         content:
-          application/json:
+          application/x-www-form-urlencoded:
             schema:
               type: object
               properties:
                 card_number:
                   type: string
-                  description: Digits only, 13-19 characters.
-                  example: "4242424242424242"
+                  description: 13 to 19 digits after spaces are removed, else "Card number must be 13 to 19 digits"
+                  example: '4242424242424242'
                 expiry:
                   type: string
-                  description: MM/YY, must not be in the past.
-                  example: "12/30"
+                  description: MM/YY with MM 01 to 12, else "Expiry must be MM/YY"; not before the current Bangkok month, else "The expiry date has passed"
+                  example: 12/28
                 cvc:
                   type: string
-                  description: Digits only, 3-4 characters.
-                  example: "123"
-                force_failure:
-                  type: boolean
-                  default: false
-              required: [card_number, expiry, cvc]
+                  description: 3 or 4 digits, else "CVC must be 3 or 4 digits"
+                  example: '123'
       responses:
-        "200":
-          description: Paid (or already was).
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Booking" }
-        "400":
-          description: >
-            `card_number must be 13-19 digits`, `cvc must be 3 or 4
-            digits`, `expiry must be in MM/YY format`, or `card has
-            expired`. Not returned when the booking is already paid.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-        "402":
-          description: Payment failed (only when `force_failure` was set).
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-              example: { error: payment failed }
-        "404":
-          $ref: "#/components/responses/BookingNotFound"
-
-  /bookings/{bookingId}/unlock:
-    post:
-      tags: [bookings]
-      summary: Get an access code for a paid booking (mocked lock).
-      parameters:
-        - $ref: "#/components/parameters/BookingId"
-      responses:
-        "200":
-          description: Unlocked.
-          content:
-            application/json:
+        '303':
+          description: |
+            Success or already complete: Location success_url?session_id=<id>.
+            Decline or card-format error: Location /pay/<id>, the reason flashed; the session stays open.
+          headers:
+            Location:
               schema:
-                type: object
-                properties:
-                  booking_id: { type: integer }
-                  access_code:
-                    type: string
-                    description: A random 8-character hex code. Not a real lock integration.
-                    example: 2847cae6
-                required: [booking_id, access_code]
-        "402":
-          description: The booking is not paid yet.
+                type: string
+              example: http://localhost:8001/bookings/BK-7KQ2M9/return?session_id=ps_Q7mZ3xK9vT2bN8rL4wYc1A
+        '404':
+          description: Unknown session
           content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-              example: { error: booking is not paid }
-        "404":
-          $ref: "#/components/responses/BookingNotFound"
-
-  /members/{name}/subscribe:
-    post:
-      tags: [members]
-      summary: Subscribe a member (mocked).
-      description: >
-        No real provider and no price yet (see issue #112). Subscribing
-        again is a no-op: `started_at` does not change. The name is matched
-        trimmed and lower-cased, so "Member A" and " member-a " are the same
-        subscriber. While active, every booking that member makes is
-        created already paid, at no extra charge.
-      parameters:
-        - name: name
-          in: path
-          required: true
-          schema: { type: string }
-          example: member-a
-      responses:
-        "200":
-          description: Subscribed (or already was).
-          content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                properties:
-                  member:
-                    type: string
-                    description: Trimmed and lower-cased.
-                    example: member-a
-                  active: { type: boolean, example: true }
-                  started_at: { type: string, format: date-time }
-                required: [member, active, started_at]
-        "400":
-          description: The name is blank after trimming.
+                type: string
+        '409':
+          description: At or after expires_at, or the session is expired; no attempt stored
           content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-              example: { error: "member name must not be blank" }
-
-  /register:
-    post:
-      tags: [accounts]
-      summary: Create an account.
-      description: >
-        Also available as a plain HTML form at GET /register, for a browser.
-        Email is matched trimmed and lower-cased, and must be unique. The
-        password is hashed (werkzeug.security) and never stored or returned
-        as plain text.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email: { type: string, format: email, example: a@example.com }
-                password:
-                  type: string
-                  minLength: 8
-                  example: hunter22
-              required: [email, password]
-      responses:
-        "201":
-          description: Registered.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/User" }
-        "400":
-          description: >
-            enter a valid email address, or password must be at least 8
-            characters.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-        "409":
-          description: That email is already registered.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-              example: { error: "email is already registered" }
-
-  /login:
-    post:
-      tags: [accounts]
-      summary: Start a session.
-      description: >
-        Also available as a plain HTML form at GET /login. A wrong password
-        and an unknown email return the identical error, so a login attempt
-        can't be used to find out which emails are registered.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email: { type: string, format: email }
-                password: { type: string }
-              required: [email, password]
-      responses:
-        "200":
-          description: Logged in.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/User" }
-        "401":
-          description: Wrong password, or no account with that email.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-              example: { error: "invalid email or password" }
-
-  /logout:
-    post:
-      tags: [accounts]
-      summary: End the session.
-      description: Idempotent - logging out when already logged out does nothing.
-      responses:
-        "200":
-          description: Logged out (or already was).
-          content:
-            application/json:
+            text/html:
               schema:
-                type: object
-                properties:
-                  status: { type: string, example: ok }
-
-  /metrics:
+                type: string
+              example: '<p>This payment session has expired. Nothing was charged.</p><a href="http://localhost:8001/bookings/BK-7KQ2M9">Back to your booking</a>'
+  /operator:
     get:
-      tags: [operations]
-      summary: Business metrics, as JSON.
-      description: The same numbers shown on `/dashboard`, for machine consumption.
+      tags: [operator]
+      operationId: operatorPage
+      summary: Sessions, attempts, refunds, totals and "needs manual follow-up"
+      description: |
+        HTTP Basic, user "operator", password OPERATOR_PASSWORD. Rule PMT-R17.
+        Sessions (booking_reference, amount, status, paid_at), attempts (booking_reference, brand,
+        last4, result, decline code, attempted_at), refunds (booking_reference, attempt, amount,
+        reason, status, created_at), all-time totals. Order: sessions newest paid_at first, then
+        unpaid sessions newest created first; attempts newest attempted_at first; refunds newest
+        created_at first. paid_at, attempted_at and created_at are
+        business times written from clock.now(), never a database default.
+        Markers: data-session-id and data-booking-reference on every session, attempt and refund
+        row; data-attempt-result (and data-decline-code on a declined row); data-refund-attempt,
+        data-refund-status; data-follow-up="<booking_reference>" with "needs manual follow-up.
+        Retry it from Purchase: All bookings" while a failed refund needs follow-up;
+        data-collected-satang, data-refunded-satang, data-net-satang, data-commission-satang.
+      security:
+        - basicAuth: []
       responses:
-        "200":
-          description: Current totals.
+        '200':
+          description: Operator page
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          description: Missing or wrong password; WWW-Authenticate Basic challenge
+          headers:
+            WWW-Authenticate:
+              schema:
+                type: string
+              example: Basic realm="operator"
+  /health:
+    get:
+      tags: [ops]
+      operationId: health
+      security: []
+      summary: Liveness with the deployed revision
+      responses:
+        '200':
+          description: Database reachable
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  spaces: { type: integer }
-                  bookings:
-                    type: integer
-                    description: paid_bookings + unpaid_bookings.
-                  paid_bookings: { type: integer }
-                  unpaid_bookings: { type: integer }
-                  members:
-                    type: integer
-                    description: Distinct member strings that have ever booked.
-                  revenue_cents:
-                    type: integer
-                    description: >
-                      Sum of amount_cents across paid bookings only - the
-                      price each was actually charged at booking time, not
-                      today's space price.
-                  utilization:
-                    type: number
-                    description: >
-                      Booked hours over the next 7 days as a share of
-                      available hours (spaces x 7 x 24), 0 if there are no
-                      spaces. Counts every booking regardless of paid
-                      status - this measures usage, not revenue.
-                    example: 0.15
-                  repeat_member_rate:
-                    type: number
-                    description: >
-                      Share of members (by the free-text member string,
-                      see issue #86) with more than one booking, 0 if
-                      there are no bookings.
-                    example: 0.25
-                  payment_conversion:
-                    type: number
-                    description: Share of bookings that were paid, 0 if there are no bookings.
-                    example: 0.67
-                  avg_revenue_cents_per_paid_booking:
-                    type: integer
-                    description: revenue_cents divided by paid_bookings, rounded; 0 if none are paid.
-                    example: 1500
-                  revenue_by_space:
-                    type: array
-                    description: One row per space, even one with no bookings at all.
-                    items:
-                      type: object
-                      properties:
-                        id: { type: integer }
-                        name: { type: string }
-                        revenue_cents: { type: integer }
-                      required: [id, name, revenue_cents]
-                required:
-                  [
-                    spaces, bookings, paid_bookings, unpaid_bookings, members,
-                    revenue_cents, utilization, repeat_member_rate,
-                    payment_conversion, avg_revenue_cents_per_paid_booking,
-                    revenue_by_space,
-                  ]
-
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                revision: 3f9c2e1
+        '503':
+          description: Database unreachable. /health keeps the seed shape, not the standard error object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: error
+                error: database unreachable
+  /_test/clock:
+    post:
+      tags: [ops]
+      operationId: setTestClock
+      security: []
+      summary: Set or clear the test clock (404 unless TEST_CLOCK_ENABLED=true)
+      description: Rule PMT-R20. Never enabled in the Dockerfile, the service compose.yaml or .env.example; only integration/compose.e2e.yaml sets it. The override is a fixed instant that never advances.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Clock'
+            examples:
+              set:
+                value:
+                  now: '2026-10-05T10:13:00+07:00'
+              clear:
+                value:
+                  now: null
+      responses:
+        '200':
+          description: Override stored (or cleared with null)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clock'
+              example:
+                now: '2026-10-05T10:13:00+07:00'
+        '400':
+          description: A now that is not ISO 8601 with an offset; nothing stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: TEST_CLOCK_ENABLED is not exactly "true"; nothing stored. With the flag off, clock.now() never reads test_clock
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 'Authorization: Bearer <PAYMENT_API_TOKEN>. Checked before validation; 401 otherwise.'
+    basicAuth:
+      type: http
+      scheme: basic
+      description: User "operator", password OPERATOR_PASSWORD (only the password is checked).
   parameters:
-    SpaceId:
-      name: spaceId
+    SessionId:
+      name: id
       in: path
       required: true
-      schema: { type: integer }
-      example: 1
-    BookingId:
-      name: bookingId
-      in: path
-      required: true
-      schema: { type: integer }
-      example: 1
-    StartTime:
-      name: start_time
-      in: query
-      required: false
-      description: Required together with end_time; ISO 8601 with a timezone.
-      schema: { type: string, format: date-time }
-      example: "2026-09-25T09:00:00Z"
-    EndTime:
-      name: end_time
-      in: query
-      required: false
-      description: Required together with start_time; must be after it.
-      schema: { type: string, format: date-time }
-      example: "2026-09-25T10:00:00Z"
-
+      description: A session id; any other value gets 404, never 400 (the pattern is on the Session schema)
+      schema:
+        type: string
+      example: ps_Q7mZ3xK9vT2bN8rL4wYc1A
   responses:
-    SpaceNotFound:
-      description: No space with that id.
+    InvalidRequest:
+      description: A field is missing, has the wrong type or is out of range; the message names the field; nothing stored
       content:
         application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-          example: { error: "space not found" }
-    BookingNotFound:
-      description: No booking with that id.
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            amount_below_minimum:
+              summary: A request for BK-9MZ4RC with amount_satang 999 (below the schema minimum 1000); nothing stored
+              value:
+                error:
+                  code: invalid_request
+                  message: amount_satang must be at least 1000 (THB 10.00)
+            naive_expires_at:
+              value:
+                error:
+                  code: invalid_request
+                  message: expires_at must be ISO 8601 with an offset
+            amount_out_of_range:
+              value:
+                error:
+                  code: invalid_request
+                  message: amount_satang is out of range
+    Unauthorized:
+      description: No token, a wrong token or the wrong scheme; nothing changes
       content:
         application/json:
-          schema: { $ref: "#/components/schemas/Error" }
-          example: { error: "booking not found" }
-    BadWindow:
-      description: >
-        start_time/end_time were not given together, aren't valid ISO 8601
-        with a timezone, or end_time is not after start_time.
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
+          schema:
+            $ref: '#/components/schemas/Error'
           example:
-            error: >-
-              start_time and end_time must be given together (ISO 8601 with
-              timezone, e.g. 2026-09-25T09:00:00Z)
-
+            error:
+              code: unauthorized
+              message: unauthorized
+    NotFound:
+      description: Unknown payment session
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: not_found
+              message: payment session not found
   schemas:
     Error:
       type: object
-      properties:
-        error: { type: string }
       required: [error]
-
-    Space:
-      type: object
       properties:
-        id: { type: integer, example: 1 }
-        name: { type: string, example: Founders Desk }
-        capacity: { type: integer, example: 1 }
-        price_cents:
-          type: integer
-          example: 2500
-          description: Per-hour rate in cents.
-        available:
-          type: boolean
-          description: >
-            Whether the space is free right now, or for the requested
-            start_time/end_time window if one was given.
-      required: [id, name, capacity, price_cents, available]
-
-    Booking:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [invalid_request, unauthorized, not_found, session_conflict, refund_conflict, reference_mismatch, refund_exceeds_collected]
+            message:
+              type: string
+    SessionCreate:
       type: object
+      required: [booking_reference, amount_satang, currency, description, success_url, cancel_url, expires_at]
       properties:
-        id: { type: integer, example: 1 }
-        space_id: { type: integer, example: 1 }
-        member: { type: string, example: member-a }
-        paid: { type: boolean }
-        start_time: { type: string, format: date-time, example: "2026-09-25T02:00:00+00:00" }
-        end_time: { type: string, format: date-time, example: "2026-09-25T03:00:00+00:00" }
-        amount_cents:
-          type: integer
-          description: >
-            What this booking was actually charged: the space's per-hour
-            rate times the hours booked, fixed at the price when it was
-            made (see issue #78) - a later price change does not affect
-            it. 0 for a subscriber's booking.
-          example: 1500
-        user_id:
-          type: integer
-          nullable: true
-          description: >
-            The account that was logged in when the booking was made (see
-            issue #134), or null for a guest booking made while logged out.
-          example: 1
-        card_last4:
+        booking_reference:
           type: string
-          nullable: true
-          description: >
-            The last 4 digits of the card used to pay (see issue #119).
-            Null until the booking is paid; the full card number and CVC
-            are never stored or returned.
-          example: "4242"
-        created_at:
+          minLength: 1
+          example: BK-7KQ2M9
+        amount_satang:
+          type: integer
+          format: int64
+          minimum: 1000
+          maximum: 9223372036854775807
+          example: 45000
+        currency:
+          type: string
+          enum: [THB]
+        description:
+          type: string
+          description: Space name and Bangkok time only; never a name or email
+          example: Meeting Room A, 2026-10-07 09:00-10:30
+        success_url:
+          type: string
+          format: uri
+          description: Absolute http or https URL; Payment appends ?session_id=<id>
+        cancel_url:
+          type: string
+          format: uri
+          description: Absolute http or https URL; the Back link
+        expires_at:
           type: string
           format: date-time
-          description: >
-            When the booking was made (see issue #138) - not when the space
-            is used, which is start_time. Set by the database.
-          example: "2026-09-24T02:48:20.933270+00:00"
-      required: [id, space_id, member, paid, start_time, end_time, amount_cents, user_id, card_last4, created_at]
-
-    User:
+          description: ISO 8601 with an offset; after clock.now() for a new session; hold_expires_at minus 2 min
+          example: '2026-10-05T10:13:00+07:00'
+    Session:
       type: object
+      required: [id, url, status, payment_status, amount_satang, currency, booking_reference, expires_at]
       properties:
-        id: { type: integer, example: 1 }
-        email: { type: string, format: email, example: a@example.com }
-      required: [id, email]
-
-    BookingList:
+        id:
+          type: string
+          pattern: '^ps_[A-Za-z0-9_-]{22}$'
+          description: ps_ + secrets.token_urlsafe(16), 128 random bits (PMT-R02)
+        url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [open, complete, expired]
+        payment_status:
+          type: string
+          enum: [unpaid, paid]
+        amount_satang:
+          type: integer
+          format: int64
+        currency:
+          type: string
+          enum: [THB]
+        booking_reference:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    RefundCreate:
       type: object
+      required: [payment_session_id, booking_reference, amount_satang, reason, attempt]
       properties:
-        bookings:
-          type: array
-          items: { $ref: "#/components/schemas/Booking" }
-      required: [bookings]
+        payment_session_id:
+          type: string
+          example: ps_Q7mZ3xK9vT2bN8rL4wYc1A
+        booking_reference:
+          type: string
+          description: Must equal the session's booking_reference
+          example: BK-7KQ2M9
+        amount_satang:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 9223372036854775807
+          example: 45000
+        reason:
+          type: string
+          minLength: 1
+          description: Purchase sends member_cancel, operator_cancel, amount_mismatch or slot_unavailable
+          example: member_cancel
+        attempt:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 2147483647
+          example: 1
+    Refund:
+      type: object
+      required: [id, payment_session_id, booking_reference, amount_satang, reason, attempt, status]
+      properties:
+        id:
+          type: string
+          pattern: '^re_'
+        payment_session_id:
+          type: string
+        booking_reference:
+          type: string
+        amount_satang:
+          type: integer
+          format: int64
+        reason:
+          type: string
+        attempt:
+          type: integer
+        status:
+          type: string
+          enum: [succeeded, failed]
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        revision:
+          type: string
+        error:
+          type: string
+    Clock:
+      type: object
+      required: [now]
+      properties:
+        now:
+          type: string
+          format: date-time
+          nullable: true
+  examples:
+    SessionOpen:
+      value:
+        id: ps_Q7mZ3xK9vT2bN8rL4wYc1A
+        url: http://localhost:8002/pay/ps_Q7mZ3xK9vT2bN8rL4wYc1A
+        status: open
+        payment_status: unpaid
+        amount_satang: 45000
+        currency: THB
+        booking_reference: BK-7KQ2M9
+        expires_at: '2026-10-05T10:13:00+07:00'
+    SessionPaid:
+      value:
+        id: ps_Q7mZ3xK9vT2bN8rL4wYc1A
+        url: http://localhost:8002/pay/ps_Q7mZ3xK9vT2bN8rL4wYc1A
+        status: complete
+        payment_status: paid
+        amount_satang: 45000
+        currency: THB
+        booking_reference: BK-7KQ2M9
+        expires_at: '2026-10-05T10:13:00+07:00'
+    SessionExpired:
+      value:
+        id: ps_Q7mZ3xK9vT2bN8rL4wYc1A
+        url: http://localhost:8002/pay/ps_Q7mZ3xK9vT2bN8rL4wYc1A
+        status: expired
+        payment_status: unpaid
+        amount_satang: 45000
+        currency: THB
+        booking_reference: BK-7KQ2M9
+        expires_at: '2026-10-05T10:13:00+07:00'
+    RefundSucceeded:
+      value:
+        id: re_3Jd8Qk2Vn7Xp5Lw9Tz4Hc6
+        payment_session_id: ps_Q7mZ3xK9vT2bN8rL4wYc1A
+        booking_reference: BK-7KQ2M9
+        amount_satang: 45000
+        reason: member_cancel
+        attempt: 1
+        status: succeeded
+    RefundFailed:
+      value:
+        id: re_7Kp2Xw9Qm4Tn8Rv3Lc6Yb5
+        payment_session_id: ps_R2kW8nT5vQ9mX3bL7yHd4E
+        booking_reference: BK-3HT8WD
+        amount_satang: 100000
+        reason: member_cancel
+        attempt: 1
+        status: failed

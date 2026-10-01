@@ -8,10 +8,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py purchase.py gunicorn.conf.py ./
+COPY *.py ./
 COPY templates/ templates/
 COPY static/ static/
 
 EXPOSE 8000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "app:create_app()"]

@@ -2,4 +2,4 @@ Flask==3.1.2
 gunicorn==23.0.0
 pytest==8.4.2
 psycopg[binary]==3.2.13
-requests==2.32.3 # only used by scripts/load_test.py, not the app itself
+requests==2.32.3

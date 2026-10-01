@@ -1,22 +1,27 @@
+name: cowork-booking-payment
+
 services:
   db:
     image: postgres:16
+    container_name: cowork-booking-payment-db
     environment:
-      POSTGRES_USER: spacey
-      POSTGRES_PASSWORD: spacey
-      POSTGRES_DB: spacey
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: payment
+      POSTGRES_DB: payment
     ports:
-      - "5433:5432"
+      - "5442:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
 
   app:
     build: .
+    image: cowork-booking-payment
+    container_name: cowork-booking-payment-app
     environment:
       APP_REVISION: compose
-      DATABASE_URL: postgresql://spacey:spacey@db:5432/spacey
+      DATABASE_URL: postgresql://payment:payment@db:5432/payment
     ports:
-      - "8000:8000"
+      - "8002:8000"
     depends_on:
       - db
 
