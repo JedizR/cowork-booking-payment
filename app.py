@@ -282,7 +282,7 @@ def create_app(database_url: str | None = None) -> Flask:
         if not password or not hmac.compare_digest(
             password.encode("utf-8", "surrogateescape"), operator_password.encode()
         ):
-            return ("Operator password required", 401,
+            return (render_template("denied.html"), 401,
                     {"WWW-Authenticate": 'Basic realm="operator"'})
         now = clock.now()
         sessions = db.execute(

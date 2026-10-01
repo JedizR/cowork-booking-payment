@@ -1,10 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{% if state == "not_found" %}Payment not found{% else %}Pay {{ s.booking_reference }}{% endif %}{% endblock %}
 {% block body_class %}page-pay{% endblock %}
-{# Stripe-style: no global bar on the hosted page; the merchant row is the header. #}
-{% block topnav %}{% endblock %}
-{# The description as sent, with its date and time kept on one line. #}
-{% macro description(s, item) %}{% if item %}{{ item.name }}, <span class="nowrap">{{ item.when }}</span>{% else %}{{ s.description }}{% endif %}{% endmacro %}
+{# Stripe-style: no global bar on the hosted page; the merchant row is the header.
+   The line item is the description exactly as Purchase sent it: Purchase owns its words and time format. #}
 {% block content %}
 {% if state == "open" %}
   {% set pay_by = s.expires_at|hhmm %}

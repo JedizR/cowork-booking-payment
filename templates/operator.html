@@ -2,8 +2,19 @@
 {% block title %}Payment totals{% endblock %}
 {% block body_class %}page-operator{% endblock %}
 {# purchase is the origin of the URLs Purchase sent with its sessions: links only, never a call (PMT-R18). #}
-{% block brand %}{% if purchase %}<a class="brand" href="{{ purchase }}/"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking<span class="brand-context">· Payment</span></a>{% else %}{{ super() }}{% endif %}{% endblock %}
-{% block topnav_right %}<div class="topnav-right"><span class="topnav-user">Operator</span></div>{% endblock %}
+{# The same bar and tabs as Purchase's operator section, so moving between the two feels like one app. #}
+{% block topnav %}
+  <header class="topnav">
+    <div class="topnav-inner">
+      {% set tag = "a" if purchase else "span" %}
+      <{{ tag }} class="brand"{% if purchase %} href="{{ purchase }}/"{% endif %}><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking</{{ tag }}>
+      <nav class="topnav-links" aria-label="Main">
+        {% if purchase %}<a href="{{ purchase }}/">Spaces</a>{% endif %}
+        <a class="is-active" href="{{ purchase ~ '/dashboard' if purchase else '/operator' }}">Operator</a>
+      </nav>
+    </div>
+  </header>
+{% endblock %}
 {% block subnav %}
   <div class="subnav">
     <div class="subnav-inner">
@@ -15,7 +26,7 @@
           <a href="{{ purchase }}/operator/spaces">Spaces</a>
           <a href="{{ purchase }}/operator/members">Members</a>
         {% endif %}
-        <a href="/operator" aria-current="page">Payment totals</a>
+        <a href="/operator" aria-current="page">Payments</a>
       </nav>
     </div>
   </div>
@@ -89,14 +100,15 @@
       <div class="section-header"><h2 class="section-title">Sessions</h2><p class="caption muted">Newest paid first, then unpaid by newest created</p></div>
       {% if sessions %}
         <div class="table-wrap"><table class="table table-stack">
-          <thead><tr><th scope="col">Booking</th><th scope="col">Status</th><th scope="col">Paid at</th><th scope="col" class="col-num">Amount</th></tr></thead>
+          <thead><tr><th scope="col">Booking</th><th scope="col">For</th><th scope="col">Status</th><th scope="col">Paid at</th><th scope="col" class="col-num">Amount</th></tr></thead>
           <tbody>
             {% for s in sessions %}
               {% set badge = session_badge[s.shown_status] %}
               <tr data-session-id="{{ s.id }}" data-booking-reference="{{ s.booking_reference }}" data-status="{{ s.shown_status }}">
                 <td><a href="{{ s.cancel_url }}">{{ s.booking_reference }}</a><span class="cell-sub mono">{{ s.id }}</span></td>
+                <td class="wrap cell-for">{{ s.description }}</td>
                 <td class="cell-status"><span class="badge {{ badge[0] }}">{{ badge[1] }}</span></td>
-                <td class="cell-time">{% if s.paid_at %}{{ s.paid_at|local_time }}{% else %}<span class="muted">Not paid</span>{% endif %}</td>
+                <td class="cell-time">{% if s.paid_at %}<span class="cell-label">Paid </span>{{ s.paid_at|local_time }}{% else %}<span class="muted">Not paid</span>{% endif %}</td>
                 <td class="col-num">{{ s.amount_satang|money }}</td>
               </tr>
             {% endfor %}

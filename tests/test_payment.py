@@ -375,12 +375,19 @@ def test_pmt_r17_operator_links_back_to_purchase_and_shows_words_first(client):
     assert "Insufficient funds" in html and "insufficient_funds" in html
     assert "Operator cancelled" in html and "Mon 5 Oct, 10:00" in html
     assert "<h1 class=\"page-title\">Payment totals</h1>" in html
+    # The tabs read as Purchase's: Dashboard, Bookings, Spaces, Members, then this page, Payments.
+    assert '<a href="/operator" aria-current="page">Payments</a>' in html
+    assert 'class="brand" href="http://localhost:8001/"' in html
 
 
 def test_pmt_r17_operator_page_needs_the_password(client):
     for auth in (None, ("operator", "wrong-password-123"), ("operator", "passwörd")):
         r = client.get("/operator", auth=auth)
         assert r.status_code == 401 and r.headers["WWW-Authenticate"].startswith("Basic")
+        # A cancelled prompt lands on a page that says why and offers the prompt again; no data.
+        html = r.get_data(as_text=True)
+        assert "Operator password required" in html and 'href="/operator">Enter password</a>' in html
+        assert "data-collected-satang" not in html
     assert client.get("/operator", auth=("anyone", OPERATOR[1])).status_code == 200
 
 

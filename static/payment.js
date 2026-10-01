@@ -127,12 +127,17 @@
     });
   }
 
-  // --- Operator page: on phones the tab strip starts scrolled to its end, where "Payment totals" is ---
+  // --- Operator page: on phones the tab strip scrolls so the current tab ("Payments") shows ---
   var strip = document.querySelector(".subnav .tabs");
-  if (strip) {
-    var toEnd = function () { strip.scrollLeft = strip.scrollWidth; };
-    toEnd();
-    if (document.fonts) document.fonts.ready.then(toEnd);  // Inter is wider than the fallback
+  var current = strip && strip.querySelector("[aria-current]");
+  if (current) {
+    var reveal = function () {
+      var over = current.getBoundingClientRect().right - strip.getBoundingClientRect().right;
+      if (over > 0) strip.scrollLeft += over + 24;
+    };
+    reveal();
+    if (document.fonts) document.fonts.ready.then(reveal);  // Inter is wider than the fallback
+    window.addEventListener("resize", reveal);
   }
 
   // --- Operator page: Sessions / Attempts / Refunds as tabs ------------------------------------

@@ -1,7 +1,5 @@
 /* Payment-only additions to the shared design system (style.css). Black and white, Inter. */
 
-.brand-context { font-weight: 400; color: var(--on-dark-muted); margin-left: -4px; }
-
 /* --- Hosted checkout (Stripe-style): no global bar; the split fills the window above the footer --- */
 .page-pay > main { display: flex; flex-direction: column; }
 .page-pay .footer { margin-top: 0; border-top: 1px solid var(--hairline); padding: var(--sp-4) 0; }
@@ -94,6 +92,7 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
 .end-icon.is-ended::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='8.25' fill='none' stroke='%23333336' stroke-width='1.8'/%3E%3Cpath d='M12 7.5V12l3 2' fill='none' stroke='%23333336' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 .end-icon.is-missing { border: 1.5px solid var(--ink); }
 .end-icon.is-missing::before { content: "?"; display: grid; place-items: center; font-size: 28px; font-weight: 600; line-height: 1; }
+.end-icon.is-locked::before { content: ""; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='5' y='10.5' width='14' height='10' rx='2' fill='none' stroke='%231d1d1f' stroke-width='1.8'/%3E%3Cpath d='M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5' fill='none' stroke='%231d1d1f' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E"); }
 .end-card .eyebrow { margin-bottom: var(--sp-2); }
 .end-merchant { justify-content: center; margin-bottom: var(--sp-6); }
 /* Time over on an open page: the same focused end state, in place of the form. */
@@ -143,6 +142,10 @@ details.test-banner { padding: 0; margin-bottom: var(--sp-6); }
   .checkout-form { padding-top: var(--sp-5); }
 }
 @media (max-width: 640px) {
+  /* All five operator tabs fit a 390 px phone, so "Payments" (current) shows without scrolling;
+     narrower phones scroll the strip to it (payment.js). */
+  .subnav .tabs { gap: var(--sp-3); }
+  .table-stack td.cell-for { flex-basis: 100%; color: var(--ink-80); }
   /* Phone tables stack into cards: .table-stack in the shared style.css. */
   /* Phone KPIs: one list, label left and value right. */
   .stats { grid-template-columns: minmax(0, 1fr); gap: 0; border: 1px solid var(--hairline); border-radius: var(--r-lg); overflow: hidden; }

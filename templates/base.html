@@ -12,14 +12,8 @@
     <script src="{{ url_for('static', filename='payment.js') }}" defer></script>
   </head>
   <body class="{% block body_class %}{% endblock %}">
-    {% block topnav %}
-    <header class="topnav">
-      <div class="topnav-inner">
-        {% block brand %}<span class="brand"><span class="brand-mark" aria-hidden="true">C</span>Cowork Booking<span class="brand-context">· Payment</span></span>{% endblock %}
-        {% block topnav_right %}{% endblock %}
-      </div>
-    </header>
-    {% endblock %}
+    {# The hosted checkout and the end pages have no global bar (Stripe-style); the operator page brings its own. #}
+    {% block topnav %}{% endblock %}
     {% block subnav %}{% endblock %}
     <main>{% block content %}{% endblock %}</main>
     <footer class="footer">
